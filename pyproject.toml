@@ -16,8 +16,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "streamlit>=1.57"]
-ui = ["streamlit>=1.57"]
+dev = ["pytest>=8", "streamlit>=1.57", "ruamel.yaml>=0.18"]
+ui = ["streamlit>=1.57", "ruamel.yaml>=0.18"]
 
 [project.scripts]
 gitteam = "gitteam.cli:run"

@@ -4,6 +4,3 @@ baseRadius = "medium"
 
 [browser]
 gatherUsageStats = false
-
-[server]
-headless = true

@@ -2,61 +2,58 @@ from pathlib import Path
 
 import streamlit as st
 
+import glossary as gl
 import services as svc
 from gitteam.commands import repo as repo_cmd
 
+st.caption(
+    "新しいリポジトリを作り、チームの標準（雛形ファイル・ラベル・main の保護・メンバーの権限）を一度に適用します。"
+    "すでにあるリポジトリに標準を当て直すこともできます。"
+)
+
 cfg, cfg_error = svc.load_config()
 if cfg is None:
-    st.warning(cfg_error or "設定が必要です。", icon=":material/warning:")
-    st.page_link("app_pages/config_page.py", label="設定ページへ", icon=":material/settings:")
+    st.warning("先に「はじめに」ページで設定ファイルを作成してください。", icon=":material/warning:")
+    st.page_link("app_pages/start.py", label="はじめにページへ", icon=":material/flag:")
     st.stop()
 
-STEP_LABELS = {
-    "scaffold": "雛形ファイル",
-    "settings": "リポジトリ設定",
-    "labels": "ラベル",
-    "protect": "ブランチ保護",
-    "access": "権限付与",
-}
-
-st.subheader("リポジトリ初期化", icon=":material/create_new_folder:")
-st.caption(f"オーナー **{cfg.owner}**（{cfg.mode.value}）配下に作成、または既存リポジトリへ設定を適用します。")
-global_dry = svc.dry_run_notice()
+st.subheader("新しいリポジトリを作る", icon=":material/create_new_folder:")
+st.caption(f"作成先: **{cfg.owner}**（{gl.MODE_LABELS[cfg.mode.value]}）。まず「内容を確認する」で、行われる操作の一覧を見てから実行します。")
 
 with st.form("repo_init"):
     left, right = st.columns([2, 1])
-    name = left.text_input("リポジトリ名", placeholder="my-service")
+    name = left.text_input("リポジトリ名", placeholder="例: my-service（半角英数字とハイフン）", help=gl.help_text("repository"))
     visibility = right.segmented_control(
-        "可視性", ["private", "public", "internal"], default=cfg.repo.visibility, key="repo_visibility"
+        "公開範囲",
+        list(gl.VISIBILITY_LABELS),
+        format_func=gl.VISIBILITY_LABELS.get,
+        default=cfg.repo.visibility,
+        key="repo_visibility",
+        help=gl.help_text("visibility"),
     )
-    description = st.text_input("説明", placeholder="任意")
-    directory = st.text_input(
-        "クローン / 雛形の配置先", value=str(Path.cwd()), help="この直下に <リポジトリ名> ディレクトリを作成します。"
-    )
+    description = st.text_input("説明（任意）", placeholder="このリポジトリが何のためのものか一言で")
     steps = st.pills(
-        "実行するステップ",
-        list(STEP_LABELS),
-        format_func=STEP_LABELS.get,
+        "行うこと",
+        list(gl.STEP_LABELS),
+        format_func=gl.STEP_LABELS.get,
         selection_mode="multi",
-        default=list(STEP_LABELS),
+        default=list(gl.STEP_LABELS),
+        help=f"{gl.help_text('scaffold')}\n\n{gl.help_text('labels')}\n\n{gl.help_text('branch_protection')}",
     )
-    with st.container(horizontal=True):
-        push = st.toggle("雛形をコミットしてプッシュ", value=True)
-        force = st.toggle("既存の雛形ファイルを上書き", value=False)
-    confirm = st.checkbox("GitHub とローカルに変更を加えることを理解しました（適用時に必須）")
-    with st.container(horizontal=True):
-        plan_clicked = st.form_submit_button("実行計画を表示（dry-run）", icon=":material/visibility:")
-        apply_clicked = st.form_submit_button("適用", type="primary", icon=":material/rocket_launch:")
+    with st.expander("詳しい設定", icon=":material/tune:"):
+        directory = st.text_input(
+            "PC 上でクローンする場所",
+            value=str(Path.cwd()),
+            help="この場所の下に <リポジトリ名> というフォルダーを作り、雛形ファイルを入れてコミット・プッシュします。",
+        )
+        push = st.toggle("雛形ファイルをコミットしてプッシュする", value=True)
+        force = st.toggle("既にある雛形ファイルを上書きする", value=False)
+    submitted = st.form_submit_button("内容を確認する", type="primary", icon=":material/visibility:")
 
-if plan_clicked or apply_clicked:
+if submitted:
     if not name.strip():
         st.error("リポジトリ名を入力してください。")
-    elif apply_clicked and not confirm:
-        st.error("適用するには確認チェックを入れてください。")
     else:
-        dry = True if plan_clicked else global_dry
-        if apply_clicked and global_dry:
-            st.warning("サイドバーの dry-run が ON のため、計画のみ表示します。", icon=":material/visibility:")
         selected = set(steps or [])
         opts = repo_cmd.InitOptions(
             name=name.strip(),
@@ -71,49 +68,43 @@ if plan_clicked or apply_clicked:
             push=push,
             force=force,
         )
-        with st.status("実行中...", expanded=False) as status:
-            result = svc.run_captured(repo_cmd.init_repo, svc.make_context(dry_run=dry), opts)
-            status.update(label="完了" if result.ok else "エラー", state="complete" if result.ok else "error")
-        st.session_state.repo_result = result
+        with st.spinner("確認中..."):
+            svc.stage_action("repo_init", repo_cmd.init_repo, opts)
+svc.render_action("repo_init", execute_label="この内容でリポジトリを作成・設定する")
 
-svc.render_result(st.session_state.get("repo_result"))
-
-st.subheader("既存リポジトリへの個別適用", icon=":material/tune:")
+st.subheader("すでにあるリポジトリに標準を適用する", icon=":material/tune:")
 ACTIONS = {
-    "settings": "リポジトリ設定",
-    "labels": "ラベル同期",
-    "protect": "ブランチ保護",
-    "access": "権限付与",
+    "settings": "マージ方式などの設定を揃える",
+    "labels": "ラベルを揃える",
+    "protect": "main ブランチを保護する",
+    "access": "チーム / メンバーに権限を付ける",
 }
-with st.form("repo_single"):
-    target_name = st.text_input("リポジトリ名（owner/name も可）", placeholder="my-service")
-    action = st.segmented_control("操作", list(ACTIONS), format_func=ACTIONS.get, default="labels")
-    prune = st.toggle("設定にないラベルを削除する（ラベル同期のみ）", value=False)
-    with st.container(horizontal=True):
-        single_plan = st.form_submit_button("計画を表示（dry-run）", icon=":material/visibility:")
-        single_apply = st.form_submit_button("適用", type="primary", icon=":material/check:")
 
-if single_plan or single_apply:
+
+def _apply_single(ctx, target_name: str, action: str, prune: bool) -> None:
+    target = repo_cmd.resolve_target(ctx, target_name)
+    if action == "settings":
+        repo_cmd.apply_settings(ctx, target)
+    elif action == "labels":
+        repo_cmd.sync_labels(ctx, target, prune)
+    elif action == "protect":
+        data = ctx.gh.repo_get(target.owner, target.name)
+        visibility_ = str(data.get("visibility", "private")) if data else ctx.config.repo.visibility
+        repo_cmd.apply_protection(ctx, target, visibility_)
+    elif action == "access":
+        repo_cmd.apply_access(ctx, target)
+
+
+with st.form("repo_single"):
+    target_name = st.text_input("リポジトリ名", placeholder=f"例: my-service（{cfg.owner} の下にあるもの）")
+    action = st.segmented_control("行うこと", list(ACTIONS), format_func=ACTIONS.get, default="labels")
+    prune = st.toggle("設定にないラベルは削除する（ラベルを揃えるときのみ）", value=False)
+    single_submitted = st.form_submit_button("内容を確認する", type="primary", icon=":material/visibility:")
+
+if single_submitted:
     if not target_name.strip():
         st.error("リポジトリ名を入力してください。")
     else:
-        dry = True if single_plan else global_dry
-        ctx = svc.make_context(dry_run=dry)
-
-        def _run_single() -> None:
-            target = repo_cmd.resolve_target(ctx, target_name.strip())
-            if action == "settings":
-                repo_cmd.apply_settings(ctx, target)
-            elif action == "labels":
-                repo_cmd.sync_labels(ctx, target, prune)
-            elif action == "protect":
-                data = ctx.gh.repo_get(target.owner, target.name)
-                visibility_ = str(data.get("visibility", "private")) if data else cfg.repo.visibility
-                repo_cmd.apply_protection(ctx, target, visibility_)
-            elif action == "access":
-                repo_cmd.apply_access(ctx, target)
-
-        with st.spinner("実行中..."):
-            st.session_state.repo_single_result = svc.run_captured(_run_single)
-
-svc.render_result(st.session_state.get("repo_single_result"))
+        with st.spinner("確認中..."):
+            svc.stage_action("repo_single", _apply_single, target_name.strip(), action or "labels", prune)
+svc.render_action("repo_single")

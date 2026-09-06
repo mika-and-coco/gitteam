@@ -45,12 +45,12 @@ class Runner:
     ) -> subprocess.CompletedProcess[str]:
         shown = self.display(cmd)
         if self.dry_run and mutating:
-            get_console().print(f"[magenta]{DRY_RUN}[/magenta] {shown}")
+            get_console().print(f"[magenta]{DRY_RUN}[/magenta] {shown}", soft_wrap=True)
             if input:
                 get_console().print(f"[dim]{self._pretty(input)}[/dim]")
             return subprocess.CompletedProcess(list(cmd), 0, "", "")
         if self.verbose:
-            get_console().print(f"[dim]$ {shown}[/dim]")
+            get_console().print(f"[dim]$ {shown}[/dim]", soft_wrap=True)
             if input:
                 get_console().print(f"[dim]{self._pretty(input)}[/dim]")
         try:

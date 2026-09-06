@@ -108,8 +108,9 @@ def hooks_install(ctx: AppContext, shared: bool | None) -> None:
     if use_shared:
         hooks_dir = root / ".githooks"
         result = scaffoldmod.materialize(root, cfg, root.name, components=["githooks"], dry_run=ctx.dry_run)
+        verb = f"{DRY_RUN} would write" if ctx.dry_run else "wrote"
         for path in result.written:
-            info(f"wrote {path.relative_to(root)}")
+            info(f"{verb} {path.relative_to(root)}")
         _make_executable(hooks_dir)
         git.config_set("core.hooksPath", ".githooks", scope="local")
         ok("core.hooksPath = .githooks (shared hooks enabled for this clone)")

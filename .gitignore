@@ -6,4 +6,4 @@ build/
 dist/
 .pytest_cache/
 gitteam.yaml
-ui/.streamlit/secrets.toml
+.streamlit/secrets.toml
