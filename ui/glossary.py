@@ -98,6 +98,26 @@ PERMISSION_LABELS = {
     "maintain": "maintain（一部設定）",
     "admin": "admin（すべて）",
 }
+# Rows of Capabilities.as_rows(): english key -> (Japanese name, explanation)
+CAPABILITY_INFO: dict[str, tuple[str, str]] = {
+    "mode": ("利用形態", "設定ファイルの mode。個人 / 組織 / 組織（Enterprise）のどれで使っているか。"),
+    "plan": ("GitHub のプラン", "GitHub から自動判定した料金プラン。free は無料、pro / team / enterprise は有料プランです。"),
+    "visibility": ("リポジトリの可視性", "この確認で想定したリポジトリの公開範囲。上の選択で切り替えられます。"),
+    "teams": ("チーム機能", "組織のチームを作ってまとめて権限を付けられるか。個人アカウントでは使えず、コラボレーターの個別招待になります。"),
+    "branch protection / rulesets": (
+        "main ブランチの保護",
+        "レビュー必須・強制プッシュ禁止などのルールを GitHub 側で強制できるか。非公開リポジトリでは有料プランが必要です。",
+    ),
+    "CODEOWNERS enforcement": (
+        "担当者レビューの強制",
+        "CODEOWNERS に書いた担当者の承認がないとマージできないようにできるか。ブランチ保護が使える場合に有効になります。",
+    ),
+    "org-level rulesets": ("組織全体のルール", "組織のすべてのリポジトリに共通のブランチ保護ルールを一括で適用できるか（Enterprise のみ）。"),
+    "push rulesets": ("プッシュ内容の制限", "特定のファイルや拡張子のプッシュを組織全体で禁止できるか（Enterprise のみ）。"),
+    "required workflows": ("必須ワークフロー", "すべてのリポジトリで必ず実行される CI（GitHub Actions）を組織で強制できるか（Enterprise のみ）。"),
+    "internal repositories": ("組織内公開リポジトリ", "組織のメンバー全員には見えるが外部には非公開の internal リポジトリを作れるか（Enterprise のみ）。"),
+}
+
 STEP_LABELS = {
     "scaffold": "雛形ファイルを入れる",
     "settings": "マージ方式などの設定",

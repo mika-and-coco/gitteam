@@ -174,3 +174,13 @@ def test_save_simple_settings_preserves_comments(config_file: Path):
 def test_save_simple_settings_rejects_invalid(config_file: Path):
     error = svc.save_simple_settings(config_file, {"owner": "", "mode": "org", "visibility": "private"})
     assert error and "owner" in error
+
+
+def test_capability_info_covers_every_row():
+    import glossary as gl
+    from gitteam.capabilities import resolve
+    from gitteam.config import Mode, Plan
+
+    keys = [key for key, _ in resolve(Mode.ORG, Plan.FREE, "private").as_rows()]
+    assert set(keys) == set(gl.CAPABILITY_INFO)
+    assert all(name and description for name, description in gl.CAPABILITY_INFO.values())

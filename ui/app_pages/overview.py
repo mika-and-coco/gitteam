@@ -56,12 +56,35 @@ if cfg:
             st.session_state.overview_caps = svc.run_captured(lambda: ctx.capabilities(visibility or cfg.repo.visibility))
     caps_result = st.session_state.get("overview_caps")
     if caps_result and caps_result.ok:
-        st.dataframe(
-            [{"機能": name, "使える": "はい" if value == "yes" else ("いいえ" if value == "no" else value)} for name, value in caps_result.value.as_rows()],
-            hide_index=True,
-            width="content",
-        )
-        for note in caps_result.value.notes:
-            st.caption(note)
+        caps = caps_result.value
+
+        def show_value(key: str, value: str) -> str:
+            if key == "mode":
+                return gl.MODE_LABELS.get(value, value)
+            if key == "visibility":
+                return gl.VISIBILITY_LABELS.get(value, value)
+            if value == "yes":
+                return "はい"
+            if value == "no":
+                return "いいえ"
+            return value
+
+        # Markdown table so long descriptions wrap instead of being cut off.
+        lines = ["| 項目 | 状態 | 説明 |", "| --- | --- | --- |"]
+        for key, value in caps.as_rows():
+            name, description = gl.CAPABILITY_INFO.get(key, (key, ""))
+            shown = show_value(key, value)
+            state = f":green[{shown}]" if shown == "はい" else (f":red[{shown}]" if shown == "いいえ" else shown)
+            lines.append(f"| **{name}** | {state} | {description} |")
+        st.markdown("\n".join(lines))
+        if not caps.branch_protection:
+            st.warning(
+                f"プラン「{caps.plan.value}」では、{gl.VISIBILITY_LABELS.get(caps.visibility, caps.visibility)}のリポジトリに"
+                "main ブランチの保護を設定できません。リポジトリを公開にするか、有料プラン"
+                "（個人は Pro、組織は Team 以上）にすると使えるようになります。",
+                icon=":material/info:",
+            )
+        if not caps.teams:
+            st.caption("個人アカウントではチーム機能がないため、共同作業者をリポジトリごとに招待する方式になります。")
     elif caps_result:
         st.error(svc.friendly_error(caps_result.error) or caps_result.error)
