@@ -1,0 +1,9 @@
+[theme]
+primaryColor = "#1f6feb"
+baseRadius = "medium"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true
