@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gitteam 取扱説明書</title>
+<style>
+:root {
+  /* Design tokens — お好みのブランドカラーに変更してください */
+  --color-bg: #ffffff;
+  --color-surface: #f5f8f7;
+  --color-surface-alt: #eaf0ee;
+  --color-border: #dfe7e5;
+  --color-border-strong: #c5d0cd;
+  --color-text: #111111;
+  --color-text-secondary: #626262;
+  --color-text-muted: #969696;
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-primary-light: #eff6ff;
+  --color-success: #16a34a;
+  --color-success-light: #dcfce7;
+  --color-warning: #e8910c;
+  --color-warning-light: #fef6e8;
+  --color-danger: #e03131;
+  --color-danger-light: #fdeaea;
+  --color-info: #0284c7;
+  --color-info-light: #e8f4fd;
+  --color-purple: #7048c6;
+  --color-purple-light: #f0ecf9;
+  --font-sans: 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', 'Hiragino Sans', 'メイリオ', Meiryo, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.07);
+  --content-width: 820px;
+  --toc-width: 220px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ── */
+.doc-header {
+  border-bottom: 3px solid var(--color-primary);
+  padding: 3rem 2rem 2rem;
+  max-width: calc(var(--content-width) + var(--toc-width) + 4rem);
+  margin: 0 auto;
+}
+.doc-logo { margin-bottom: 1.25rem; }
+.doc-logo svg { display: block; }
+.doc-header h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.5rem;
+}
+.doc-header .subtitle {
+  font-size: 1.125rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 1.25rem;
+}
+.doc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.doc-meta-item {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: 0.25rem 0.625rem;
+}
+.doc-meta-item strong { color: var(--color-text); font-weight: 600; }
+
+.doc-layout {
+  display: grid;
+  grid-template-columns: var(--toc-width) 1fr;
+  gap: 2rem;
+  max-width: calc(var(--content-width) + var(--toc-width) + 4rem);
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* ── TOC Sidebar ── */
+.toc {
+  position: sticky;
+  top: 1.5rem;
+  align-self: start;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  font-size: 0.8125rem;
+  padding-right: 1rem;
+  border-right: 1px solid var(--color-border);
+}
+.toc-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.75rem;
+}
+.toc ol {
+  list-style: none;
+  padding: 0;
+}
+.toc li { margin-bottom: 0.125rem; }
+.toc a {
+  display: block;
+  padding: 0.25rem 0.5rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-xs);
+  transition: all 0.15s;
+}
+.toc a:hover { color: var(--color-primary); background: var(--color-primary-light); }
+.toc a.active { color: var(--color-primary); font-weight: 600; background: var(--color-primary-light); }
+.toc .toc-sub { padding-left: 1rem; }
+.toc .toc-sub a { font-size: 0.75rem; }
+
+/* ── Main Content ── */
+.doc-main { max-width: var(--content-width); }
+.doc-main section {
+  margin-bottom: 3rem;
+  scroll-margin-top: 1.5rem;
+}
+.doc-main h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--color-primary);
+  color: var(--color-text);
+}
+.doc-main h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+.doc-main p { margin-bottom: 1rem; }
+.doc-main ul, .doc-main ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+.doc-main li { margin-bottom: 0.375rem; }
+
+/* ── Summary Cards ── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+.card-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+.card-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.375rem;
+}
+.card-detail {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.card--accent-blue { border-left: 3px solid var(--color-info); }
+.card--accent-green { border-left: 3px solid var(--color-primary); }
+.card--accent-amber { border-left: 3px solid var(--color-warning); }
+.card--accent-red { border-left: 3px solid var(--color-danger); }
+
+/* ── Badges ── */
+.badge {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.1875rem 0.5rem;
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.badge-must   { background: var(--color-danger-light); color: var(--color-danger); }
+.badge-should { background: var(--color-warning-light); color: var(--color-warning); }
+.badge-could  { background: var(--color-info-light); color: var(--color-info); }
+.badge-wont   { background: var(--color-surface-alt); color: var(--color-text-muted); }
+
+.badge-confirmed  { background: var(--color-success-light); color: var(--color-success); }
+.badge-inferred   { background: var(--color-purple-light); color: var(--color-purple); }
+.badge-assumption { background: var(--color-warning-light); color: var(--color-warning); }
+.badge-open       { background: var(--color-info-light); color: var(--color-info); }
+
+.badge-risk-high   { background: var(--color-danger-light); color: var(--color-danger); }
+.badge-risk-medium { background: var(--color-warning-light); color: var(--color-warning); }
+.badge-risk-low    { background: var(--color-success-light); color: var(--color-success); }
+
+/* ── Tables ── */
+.spec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin: 1rem 0 1.5rem;
+}
+.spec-table thead { background: var(--color-surface); }
+.spec-table th {
+  font-weight: 600;
+  text-align: left;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 2px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.spec-table td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.spec-table tbody tr:hover { background: var(--color-surface); }
+.spec-table code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  background: var(--color-surface-alt);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-xs);
+}
+
+/* ── Callouts ── */
+.callout {
+  border-left: 3px solid var(--color-border-strong);
+  background: var(--color-surface);
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.9375rem;
+}
+.callout-title {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.375rem;
+}
+.callout-info    { border-left-color: var(--color-info);    background: var(--color-info-light); }
+.callout-info .callout-title { color: var(--color-info); }
+.callout-warning { border-left-color: var(--color-warning); background: var(--color-warning-light); }
+.callout-warning .callout-title { color: var(--color-warning); }
+.callout-danger  { border-left-color: var(--color-danger);  background: var(--color-danger-light); }
+.callout-danger .callout-title { color: var(--color-danger); }
+.callout-success { border-left-color: var(--color-success); background: var(--color-success-light); }
+.callout-success .callout-title { color: var(--color-success); }
+
+/* ── Diagrams ── */
+.diagram-container {
+  margin: 1.5rem 0;
+  text-align: center;
+  cursor: zoom-in;
+}
+.diagram-container .mermaid {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.diagram-container:hover .mermaid,
+.diagram-container:focus-visible .mermaid {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+.diagram-container:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: var(--radius);
+}
+.diagram-container::after {
+  content: "Click to enlarge";
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.diagram-container:hover::after,
+.diagram-container:focus-visible::after { opacity: 1; }
+.diagram-container figcaption {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* ── Lightbox Modal (Pan & Zoom) ── */
+.diagram-modal {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(12px);
+  transition: opacity 0.28s ease-out, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.28s;
+}
+.diagram-modal.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.diagram-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.diagram-modal-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.diagram-modal-btn {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: var(--radius-xs);
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.diagram-modal-btn:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.diagram-modal-zoom-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  min-width: 3rem;
+  text-align: center;
+}
+.diagram-modal-caption-bar {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.diagram-modal-viewport {
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  background: var(--color-surface);
+  position: relative;
+}
+.diagram-modal-viewport:active { cursor: grabbing; }
+.diagram-modal-content {
+  transform-origin: 0 0;
+  padding: 2rem;
+}
+.diagram-modal-content svg {
+  max-width: none;
+  max-height: none;
+}
+
+@media print { .diagram-modal { display: none !important; } }
+
+/* ── Glossary ── */
+.glossary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.glossary-item {
+  padding: 0.875rem 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.glossary-term {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  margin-bottom: 0.25rem;
+}
+.glossary-def {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Risk Cards ── */
+.risk-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+.risk-card--high   { border-left: 3px solid var(--color-danger); }
+.risk-card--medium { border-left: 3px solid var(--color-warning); }
+.risk-card--low    { border-left: 3px solid var(--color-success); }
+.risk-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+.risk-title { font-weight: 600; font-size: 0.9375rem; }
+.risk-body  { font-size: 0.875rem; color: var(--color-text-secondary); }
+
+/* ── Open Questions ── */
+.question-list {
+  list-style: none;
+  padding: 0;
+}
+.question-list li {
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-xs);
+  margin-bottom: 0.5rem;
+  font-size: 0.9375rem;
+  background: var(--color-info-light);
+}
+.question-list li::before {
+  content: "?";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--color-info);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-right: 0.625rem;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* ── Directory Tree ── */
+.tree-view {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.8;
+  white-space: pre;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+.tree-view .dir { color: var(--color-primary-dark); font-weight: 600; }
+.tree-view .file { color: var(--color-text-secondary); }
+.tree-view .comment { color: var(--color-text-muted); font-style: italic; }
+
+/* ── Pyramid Chart ── */
+.pyramid { margin: 1.5rem 0; }
+.pyramid-level {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) 2fr;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.pyramid-bar {
+  border-radius: var(--radius-xs);
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.pyramid-bar .count {
+  font-size: 0.6875rem;
+  opacity: 0.8;
+  font-weight: 400;
+}
+.pyramid-detail {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+/* ── Code Blocks ── */
+pre {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  margin: 1rem 0;
+}
+
+/* ── Footer ── */
+.doc-footer {
+  border-top: 1px solid var(--color-border);
+  max-width: calc(var(--content-width) + var(--toc-width) + 4rem);
+  margin: 2rem auto 0;
+  padding: 1.5rem 2rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+.doc-footer p { margin-bottom: 0.25rem; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .doc-layout {
+    grid-template-columns: 1fr;
+    padding: 1.25rem;
+  }
+  .toc {
+    position: static;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    padding-right: 0;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+  }
+  .doc-header { padding: 2rem 1.25rem 1.5rem; }
+  .doc-header h1 { font-size: 1.75rem; }
+  .card-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── Print ── */
+@media print {
+  body { font-size: 11pt; }
+  .toc, .doc-meta { display: none; }
+  .doc-layout { display: block; }
+  .doc-header { padding: 1rem 0; border-bottom: 2px solid #000; }
+  .doc-main section { page-break-inside: avoid; }
+  .card { border: 1px solid #999; }
+  .badge { border: 1px solid currentColor; }
+  a { color: inherit; text-decoration: none; }
+  .doc-footer { border-top: 1px solid #000; }
+}
+</style>
+
+<style>
+/* Additions for the manual */
+pre { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      padding: 0.875rem 1rem; margin: 0.75rem 0 1.25rem; overflow-x: auto; font-size: 0.8125rem; line-height: 1.6; }
+pre code { font-family: var(--font-mono); }
+.doc-main p code, .doc-main li code, .doc-main td code { font-family: var(--font-mono); font-size: 0.8125rem;
+      background: var(--color-surface-alt); padding: 0.125rem 0.375rem; border-radius: var(--radius-xs); }
+kbd { font-family: var(--font-mono); font-size: 0.75rem; border: 1px solid var(--color-border-strong);
+      border-bottom-width: 2px; border-radius: 4px; padding: 0.0625rem 0.375rem; background: #fff; }
+.diagram-container svg { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 0.5rem; }
+.diagram-container { cursor: default; }
+.diagram-container::after { content: none; }
+@media (max-width: 900px) {
+  .doc-layout { grid-template-columns: 1fr; }
+  .toc { position: static; border-right: none; border-bottom: 1px solid var(--color-border); max-height: none; padding-bottom: 1rem; }
+  .card-grid { grid-template-columns: 1fr; }
+}
+@media print {
+  .toc { display: none; }
+  .doc-layout { grid-template-columns: 1fr; padding: 0; }
+  .doc-main section { break-inside: avoid-page; }
+}
+</style>
+
+</head>
+<body>
+<header class="doc-header">
+  <div class="doc-logo">
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+      <circle cx="22" cy="22" r="20" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+      <circle cx="14" cy="16" r="4" fill="#2563eb"/><circle cx="30" cy="16" r="4" fill="#2563eb"/><circle cx="22" cy="30" r="4" fill="#2563eb"/>
+      <path d="M14 20v3a4 4 0 0 0 4 4h4M30 20v3a4 4 0 0 1-4 4h-4" stroke="#2563eb" stroke-width="2" fill="none"/>
+    </svg>
+  </div>
+  <h1>gitteam 取扱説明書</h1>
+  <p class="subtitle">チームで GitHub を使い始めるための準備と日々の作業を、画面から順番に進めるためのガイド</p>
+  <div class="doc-meta">
+    <span class="doc-meta-item"><strong>種別:</strong> 取扱説明書（利用者向け）</span>
+    <span class="doc-meta-item"><strong>対象版:</strong> gitteam 0.1.0</span>
+    <span class="doc-meta-item"><strong>作成日:</strong> 2026-09-07</span>
+    <span class="doc-meta-item"><strong>対象読者:</strong> チーム管理者・開発者（初心者可）</span>
+    <span class="doc-meta-item"><strong>関連:</strong> spec.md / README.md / SECURITY.md</span>
+  </div>
+</header>
+
+<div class="doc-layout">
+  <nav class="toc" aria-label="目次">
+    <div class="toc-title">目次</div>
+    <ol>
+      <li><a href="#overview">1. gitteam でできること</a></li>
+      <li><a href="#requirements">2. 動作環境と事前準備</a></li>
+      <li><a href="#install">3. インストールと起動</a></li>
+      <li>
+        <a href="#setup">4. 初期設定（4 ステップ）</a>
+        <ol class="toc-sub">
+          <li><a href="#setup-1">4.1 ツールとログイン</a></li>
+          <li><a href="#setup-2">4.2 設定ファイルを作る</a></li>
+          <li><a href="#setup-3">4.3 メンバーを登録する</a></li>
+          <li><a href="#setup-4">4.4 最初のリポジトリ</a></li>
+        </ol>
+      </li>
+      <li><a href="#pages">5. 画面の説明</a></li>
+      <li><a href="#daily">6. 日々の作業</a></li>
+      <li><a href="#config">7. 設定の編集</a></li>
+      <li><a href="#cli">8. コマンド（CLI）</a></li>
+      <li><a href="#safety">9. 安全のしくみ</a></li>
+      <li><a href="#trouble">10. 困ったときは</a></li>
+      <li><a href="#glossary">11. 用語集</a></li>
+      <li><a href="#appendix">付録</a></li>
+    </ol>
+  </nav>
+
+  <main class="doc-main">
+
+    <section id="overview">
+      <h2>1. gitteam でできること</h2>
+      <p>
+        gitteam は、チームで GitHub を使うときの「決めごと」を 1 つの設定ファイル（<code>gitteam.yaml</code>）にまとめ、
+        ブラウザの画面（Web UI）またはコマンド（CLI）からその決めごとを GitHub とメンバーの PC に反映するツールです。
+        リポジトリの作成、メンバーへの権限付与、main ブランチの保護、コミットメッセージやブランチ名のルール、各メンバーの git 設定までを一度に整えます。
+      </p>
+      <div class="card-grid">
+        <div class="card card--accent-blue">
+          <div class="card-label">扱う領域</div>
+          <div class="card-value">4</div>
+          <div class="card-detail">リポジトリの標準化 / チームと権限 / 日々の作業ルール / PC のセットアップ</div>
+        </div>
+        <div class="card card--accent-green">
+          <div class="card-label">GitHub の利用形態</div>
+          <div class="card-value">3</div>
+          <div class="card-detail">個人アカウント / 組織（Free・Team） / 組織（Enterprise）を同じ操作で</div>
+        </div>
+        <div class="card card--accent-amber">
+          <div class="card-label">実行の手順</div>
+          <div class="card-value">2 段階</div>
+          <div class="card-detail">「内容を確認する」→「この内容で実行する」。確認だけなら何も変わりません</div>
+        </div>
+        <div class="card card--accent-red">
+          <div class="card-label">画面の数</div>
+          <div class="card-value">8</div>
+          <div class="card-detail">はじめに / 状態を見る / チームの設定 / PC のセットアップ / リポジトリを作る / チームとメンバー / 日々の作業 / 用語集</div>
+        </div>
+      </div>
+      <div class="callout callout-info">
+        <div class="callout-title">この説明書の読み方</div>
+        初めての方は 2 → 3 → 4 章の順に進めれば初期設定が完了します。日々の開発では 6 章、設定を変えたいときは 7 章、うまく動かないときは 10 章を参照してください。
+      </div>
+    </section>
+
+    <section id="requirements">
+      <h2>2. 動作環境と事前準備</h2>
+      <table class="spec-table">
+        <thead><tr><th>必要なもの</th><th>バージョン</th><th>入手先 / 確認方法</th></tr></thead>
+        <tbody>
+          <tr><td>Python</td><td>3.11 以上</td><td>https://www.python.org/ 。<code>python --version</code> で確認</td></tr>
+          <tr><td>git</td><td>2.23 以上</td><td>https://git-scm.com/downloads 。<code>git --version</code> で確認</td></tr>
+          <tr><td>gh（GitHub CLI）</td><td>2.47 以上</td><td>https://cli.github.com/ 。<code>gh --version</code> で確認</td></tr>
+          <tr><td>GitHub アカウント</td><td>-</td><td>個人で使う場合は自分のアカウント、組織で使う場合は組織のオーナー権限</td></tr>
+        </tbody>
+      </table>
+      <h3>GitHub へのログイン（初回のみ）</h3>
+      <p>gitteam は gh を通して GitHub に接続します。ターミナル（PowerShell やコマンドプロンプト）で次を実行し、ブラウザの指示に従ってログインしてください。</p>
+      <pre><code>gh auth login</code></pre>
+      <p>組織のチームやメンバーを操作する場合は、追加の権限が必要です。</p>
+      <pre><code>gh auth refresh -s admin:org</code></pre>
+      <div class="callout callout-warning">
+        <div class="callout-title">GitHub のプランによる制限</div>
+        無料プランでは<strong>非公開リポジトリに main ブランチの保護を設定できません</strong>。gitteam は自動でプランを調べ、使えない機能は理由を添えてスキップします。公開リポジトリにするか、有料プラン（個人は Pro、組織は Team 以上）にすると使えるようになります。
+      </div>
+    </section>
+
+    <section id="install">
+      <h2>3. インストールと起動</h2>
+      <h3>いちばん簡単な方法（Windows）</h3>
+      <ol>
+        <li>gitteam のフォルダーを開き、<code>start_ui.bat</code> をダブルクリックします。</li>
+        <li>初回は仮想環境の作成と必要なパッケージの導入が自動で行われます（数分かかります）。</li>
+        <li>ブラウザが自動で開き、<code>http://localhost:8501</code> に「はじめに」画面が表示されます。</li>
+      </ol>
+      <p>macOS / Linux では <code>./start_ui.sh</code>、PowerShell では <code>.\start_ui.ps1</code> を実行します。</p>
+      <h3>手動でインストールする場合</h3>
+      <pre><code>python -m venv .venv
+.venv\Scripts\activate          # macOS / Linux: source .venv/bin/activate
+pip install -e ".[ui]"
+streamlit run ui/streamlit_app.py   # 画面を起動
+gitteam --help                      # コマンドを使う場合</code></pre>
+      <div class="callout callout-danger">
+        <div class="callout-title">画面はこの PC からだけ使えます</div>
+        画面（Web UI）には認証がないため、<strong>localhost のみで待ち受ける</strong>設定になっています。<code>--server.address 0.0.0.0</code> などで他の PC から見えるようにしないでください。
+      </div>
+      <h3>終了するには</h3>
+      <p>起動したターミナル（黒い画面）で <kbd>Ctrl</kbd>+<kbd>C</kbd> を押すか、ウィンドウを閉じます。ブラウザのタブを閉じただけでは終了しません。</p>
+    </section>
+
+    <section id="setup">
+      <h2>4. 初期設定（4 ステップ）</h2>
+      <p>「はじめに」画面は、必要な準備を上から順に案内します。進み具合のバーと各ステップの「完了 / 未完了」バッジで、今どこまで済んでいるかが分かります。</p>
+
+      <figure class="diagram-container" tabindex="0">
+        <svg viewBox="0 0 760 150" width="100%" role="img" aria-label="初期設定の 4 ステップの流れ">
+          <defs><marker id="arw" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker></defs>
+          <g font-family="sans-serif" font-size="13" text-anchor="middle">
+            <rect x="10" y="35" width="160" height="80" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+            <text x="90" y="62" font-weight="700" fill="#1d4ed8">1. ツールとログイン</text>
+            <text x="90" y="84" fill="#626262">git / gh / gh auth login</text>
+            <line x1="170" y1="75" x2="200" y2="75" stroke="#2563eb" stroke-width="2" marker-end="url(#arw)"/>
+            <rect x="205" y="35" width="160" height="80" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+            <text x="285" y="62" font-weight="700" fill="#1d4ed8">2. 設定ファイル</text>
+            <text x="285" y="84" fill="#626262">利用形態とオーナーを入力</text>
+            <line x1="365" y1="75" x2="395" y2="75" stroke="#2563eb" stroke-width="2" marker-end="url(#arw)"/>
+            <rect x="400" y="35" width="160" height="80" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+            <text x="480" y="62" font-weight="700" fill="#1d4ed8">3. メンバー登録</text>
+            <text x="480" y="84" fill="#626262">チーム / 共同作業者</text>
+            <line x1="560" y1="75" x2="590" y2="75" stroke="#2563eb" stroke-width="2" marker-end="url(#arw)"/>
+            <rect x="595" y="35" width="155" height="80" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+            <text x="672" y="62" font-weight="700" fill="#15803d">4. 最初のリポジトリ</text>
+            <text x="672" y="84" fill="#626262">確認 → 実行</text>
+          </g>
+        </svg>
+        <figcaption>図1: 「はじめに」画面が案内する初期設定の流れ</figcaption>
+      </figure>
+
+      <h3 id="setup-1">4.1 必要なツールと GitHub へのログイン</h3>
+      <p>git、gh、GitHub へのログインが自動で点検されます。未検出のものには入手先が表示されます。ログインを済ませたら「もう一度確認する」を押してください。</p>
+
+      <h3 id="setup-2">4.2 チームの設定ファイルを作る</h3>
+      <table class="spec-table">
+        <thead><tr><th>入力項目</th><th>入れるもの</th><th>例</th></tr></thead>
+        <tbody>
+          <tr><td>GitHub をどのように使いますか？</td><td>「個人アカウントで使う」「組織（Organization）で使う」「組織（GitHub Enterprise）で使う」から選択</td><td>組織（Organization）で使う</td></tr>
+          <tr><td>オーナー</td><td>リポジトリを所有するアカウント名。URL <code>https://github.com/&lt;ここ&gt;</code> の部分。個人なら自分のユーザー名（自動入力されます）、組織なら組織名</td><td><code>my-org</code></td></tr>
+          <tr><td>保存場所</td><td>通常は変更不要。プロジェクト配下またはユーザーの設定フォルダーのみ指定できます</td><td><code>C:\work\gitteam.yaml</code></td></tr>
+        </tbody>
+      </table>
+      <p>「設定ファイルを作成する」を押すと、すべての項目にコメント付きの <code>gitteam.yaml</code> が作られ、自動的に「信頼済み」として登録されます（9 章参照）。</p>
+
+      <h3 id="setup-3">4.3 メンバーを登録する</h3>
+      <p>組織で使う場合は「チームの設定」画面の<strong>かんたん設定</strong>タブでチームを作り、メンバーの GitHub ユーザー名を登録します（7 章）。個人アカウントの場合は共同作業者を登録します。一人で使う場合、このステップは不要です。</p>
+      <p>登録後、「チームとメンバー」画面の「GitHub に反映する」で実際に GitHub 上のチームが作られ、メンバーに招待メールが届きます。</p>
+
+      <h3 id="setup-4">4.4 最初のリポジトリを作る</h3>
+      <p>「リポジトリを作る」画面でリポジトリ名を入力し、「内容を確認する」を押します。これから行われる操作（例: リポジトリの作成、ファイルの配置、ラベルの作成、main ブランチの保護、権限の付与）が日本語の一覧で表示されるので、確認してから「この内容でリポジトリを作成・設定する」を押します。</p>
+    </section>
+
+    <section id="pages">
+      <h2>5. 画面の説明</h2>
+      <p>左のサイドバーからページを切り替えます。サイドバー下部には設定ファイルの状態（設定済み / 未作成 / 未信頼）が表示されます。</p>
+      <table class="spec-table">
+        <thead><tr><th>ページ</th><th>用途</th><th>主な操作</th></tr></thead>
+        <tbody>
+          <tr><td><strong>はじめに</strong></td><td>初期設定の案内</td><td>4 ステップの進み具合、設定ファイルの作成、各画面へのリンク</td></tr>
+          <tr><td><strong>状態を見る</strong></td><td>環境と設定の点検</td><td>「診断を実行」（git / gh / ログイン / 設定 / プラン）、「使える機能の確認」（可視性ごとに機能の可否と説明を表示）</td></tr>
+          <tr><td><strong>チームの設定</strong></td><td>決めごとの編集</td><td>かんたん設定（フォーム）、詳細（YAML の直接編集・チェック・保存）</td></tr>
+          <tr><td><strong>PC のセットアップ</strong></td><td>各メンバーの PC 設定</td><td>名前とメールを入れて git 設定をチーム標準に合わせる、チームのリポジトリをまとめて取得、今の設定を見る</td></tr>
+          <tr><td><strong>リポジトリを作る</strong></td><td>新規作成と標準の適用</td><td>行うことをピルで選択 → 確認 → 実行。既存リポジトリへの個別適用（設定 / ラベル / 保護 / 権限）</td></tr>
+          <tr><td><strong>チームとメンバー</strong></td><td>権限の反映と招待</td><td>登録内容の一覧、GitHub に反映する、一人を招待する、GitHub 上の今の状態を見る</td></tr>
+          <tr><td><strong>日々の作業</strong></td><td>開発中の毎日の操作</td><td>ブランチを切る、コミットメッセージの確認、PR とリリース、自動チェック（hooks）</td></tr>
+          <tr><td><strong>用語集とよくある質問</strong></td><td>ヘルプ</td><td>用語の検索、FAQ</td></tr>
+        </tbody>
+      </table>
+      <h3>サイドバーの「上級者向け」</h3>
+      <table class="spec-table">
+        <thead><tr><th>項目</th><th>説明</th></tr></thead>
+        <tbody>
+          <tr><td>設定ファイルの場所</td><td>別の <code>gitteam.yaml</code> を使うときに指定します。プロジェクト配下またはユーザー設定フォルダー配下の <code>.yaml</code> のみ指定できます</td></tr>
+          <tr><td>詳細ログを表示する</td><td>ON にすると、実行した git / gh のコマンドがすべて「詳細ログ」に出ます</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="daily">
+      <h2>6. 日々の作業</h2>
+      <p>「日々の作業」画面は、開発中に毎日行う作業をチームのルールどおりに進めるためのものです。最初に「作業しているリポジトリの場所」（PC 上のフォルダー）を指定します。</p>
+
+      <figure class="diagram-container" tabindex="0">
+        <svg viewBox="0 0 760 130" width="100%" role="img" aria-label="日々の作業の流れ">
+          <defs><marker id="arw2" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0284c7"/></marker></defs>
+          <g font-family="sans-serif" font-size="13" text-anchor="middle">
+            <rect x="10" y="30" width="135" height="70" rx="10" fill="#e8f4fd" stroke="#0284c7" stroke-width="2"/>
+            <text x="77" y="58" font-weight="700" fill="#0369a1">ブランチを切る</text><text x="77" y="80" fill="#626262">feature/42-login</text>
+            <line x1="145" y1="65" x2="170" y2="65" stroke="#0284c7" stroke-width="2" marker-end="url(#arw2)"/>
+            <rect x="175" y="30" width="135" height="70" rx="10" fill="#e8f4fd" stroke="#0284c7" stroke-width="2"/>
+            <text x="242" y="58" font-weight="700" fill="#0369a1">コミット</text><text x="242" y="80" fill="#626262">feat: ログイン画面を追加</text>
+            <line x1="310" y1="65" x2="335" y2="65" stroke="#0284c7" stroke-width="2" marker-end="url(#arw2)"/>
+            <rect x="340" y="30" width="135" height="70" rx="10" fill="#e8f4fd" stroke="#0284c7" stroke-width="2"/>
+            <text x="407" y="58" font-weight="700" fill="#0369a1">プッシュ / PR</text><text x="407" y="80" fill="#626262">hooks と CI が検証</text>
+            <line x1="475" y1="65" x2="500" y2="65" stroke="#0284c7" stroke-width="2" marker-end="url(#arw2)"/>
+            <rect x="505" y="30" width="110" height="70" rx="10" fill="#e8f4fd" stroke="#0284c7" stroke-width="2"/>
+            <text x="560" y="58" font-weight="700" fill="#0369a1">レビュー</text><text x="560" y="80" fill="#626262">承認 → マージ</text>
+            <line x1="615" y1="65" x2="640" y2="65" stroke="#0284c7" stroke-width="2" marker-end="url(#arw2)"/>
+            <rect x="645" y="30" width="105" height="70" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+            <text x="697" y="58" font-weight="700" fill="#15803d">リリース</text><text x="697" y="80" fill="#626262">v1.4.0</text>
+          </g>
+        </svg>
+        <figcaption>図2: ブランチ作成からリリースまでの流れ</figcaption>
+      </figure>
+
+      <h3>ブランチを切る</h3>
+      <ol>
+        <li>「作業の種類」を選びます（feature=新機能、fix=バグ修正、hotfix=緊急修正、chore=雑務、docs=文書、refactor=整理、test=テスト、release=リリース準備）。</li>
+        <li>「作業内容」を入力します。日本語でも構いません。英数字に変換され、<code>feature/add-login-page</code> のようなブランチ名が自動で作られます。</li>
+        <li>Issue 番号があれば入力すると <code>feature/42-add-login-page</code> の形になります。</li>
+        <li>「内容を確認する」→「このブランチを作成して切り替える」。</li>
+      </ol>
+
+      <h3>コミットメッセージ</h3>
+      <p>コミットメッセージは「<strong>種類: 説明</strong>」の形で書きます（Conventional Commits）。入力欄に書くとその場で判定されます。</p>
+      <table class="spec-table">
+        <thead><tr><th>書き方</th><th>判定</th><th>理由</th></tr></thead>
+        <tbody>
+          <tr><td><code>feat: ログイン画面を追加</code></td><td><span class="badge badge-confirmed">OK</span></td><td>種類 feat、説明あり</td></tr>
+          <tr><td><code>fix(auth): トークン期限切れを修正</code></td><td><span class="badge badge-confirmed">OK</span></td><td>スコープ（auth）付き</td></tr>
+          <tr><td><code>feat(api)!: v1 エンドポイントを削除</code></td><td><span class="badge badge-confirmed">OK</span></td><td><code>!</code> は互換性のない変更</td></tr>
+          <tr><td><code>ログイン画面を追加</code></td><td><span class="badge badge-must">NG</span></td><td>種類がない</td></tr>
+          <tr><td><code>feat: 追加した。</code></td><td><span class="badge badge-must">NG</span></td><td>末尾のピリオド（句点）は不可</td></tr>
+          <tr><td><code>wip: 作業中</code></td><td><span class="badge badge-must">NG</span></td><td>wip は許可された種類にない</td></tr>
+        </tbody>
+      </table>
+      <p>種類の一覧: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert（設定で変更可能）。</p>
+
+      <h3>PR（プルリクエスト）とリリース</h3>
+      <ul>
+        <li><strong>PR を出す</strong>: タイトルは空欄でも自動で付きます。今いるブランチをプッシュし、テンプレート・ラベル・レビュアーを設定して PR を作ります。</li>
+        <li><strong>リリース</strong>: バージョン（例 <code>1.4.0</code>）を入力すると、main の今の状態にタグ <code>v1.4.0</code> を付け、変更点をまとめた GitHub Release を公開します。main 以外のブランチや未コミットの変更があるときは止まります。</li>
+      </ul>
+
+      <h3>自動チェック（hooks）</h3>
+      <p>「自動チェックを入れる」を実行すると、コミット時と push 時にルールを自動で検証する仕組みがリポジトリに入ります。「リポジトリに入れてチーム全員で共有」を選ぶと、他のメンバーも <code>git config core.hooksPath .githooks</code> の 1 行で同じチェックを使えます。</p>
+    </section>
+
+    <section id="config">
+      <h2>7. 設定の編集</h2>
+      <p>「チームの設定」画面には 2 つのタブがあります。通常は<strong>かんたん設定</strong>で足ります。</p>
+      <h3>かんたん設定でできること</h3>
+      <table class="spec-table">
+        <thead><tr><th>区分</th><th>項目</th><th>意味</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="3">基本</td><td>オーナー</td><td>リポジトリを所有する GitHub アカウント名</td></tr>
+          <tr><td>利用形態</td><td>個人 / 組織 / 組織（Enterprise）</td></tr>
+          <tr><td>新しく作るリポジトリの公開範囲</td><td>非公開 / 公開 / 組織内のみ（Enterprise）</td></tr>
+          <tr><td>チームとメンバー（組織）</td><td>チーム名・権限・メンバー・メンテナー</td><td>行を追加してチームを作り、GitHub ユーザー名をカンマ区切りで入力。権限は pull（閲覧）&lt; triage &lt; push（書き込み）&lt; maintain &lt; admin</td></tr>
+          <tr><td>共同作業者（個人）</td><td>ユーザー名・権限</td><td>リポジトリに招待する人</td></tr>
+          <tr><td rowspan="3">main ブランチの守り方</td><td>必要な承認レビュー数</td><td>この人数の承認がないとマージできない</td></tr>
+          <tr><td>担当者（CODEOWNERS）のレビューを必須にする</td><td>ファイルの担当者の承認を必須にする</td></tr>
+          <tr><td>管理者にもルールを適用する</td><td>OFF にすると管理者はルールを無視できる</td></tr>
+          <tr><td rowspan="3">作業ルール</td><td>コミット件名の最大文字数</td><td>既定 72</td></tr>
+          <tr><td>ブランチ名に Issue 番号を必須にする</td><td>ON で <code>feature/42-...</code> の形を強制</td></tr>
+          <tr><td>バージョンタグの接頭辞</td><td>既定 <code>v</code>（v1.2.0）</td></tr>
+          <tr><td>PC のセットアップ</td><td>自動的にクローンするリポジトリ</td><td>1 行に 1 つ。新メンバーの「PC のセットアップ」でまとめて取得される</td></tr>
+        </tbody>
+      </table>
+      <p>「保存する」で設定ファイルに書き戻されます。ファイル内のコメント（説明文）は保持されます。</p>
+      <h3>詳細（YAML を直接編集）</h3>
+      <p>ラベルの一覧、雛形に含めるファイル、細かな保護ルールなど、かんたん設定にない項目はこちらで編集します。「チェックする」で書き方の誤りをその場で確認できます。項目の一覧は <code>spec.md</code> の 4 章を参照してください。</p>
+    </section>
+
+    <section id="cli">
+      <h2>8. コマンド（CLI）</h2>
+      <p>画面と同じ操作をターミナルからも実行できます。すべてのコマンドに <code>--dry-run</code>（<code>-n</code>）を付けると、実行される git / gh のコマンドを表示するだけで何も変更しません。</p>
+      <table class="spec-table">
+        <thead><tr><th>コマンド</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>gitteam doctor</code></td><td>環境の点検</td></tr>
+          <tr><td><code>gitteam config init --owner NAME --mode org|org-enterprise|personal</code></td><td>設定ファイルの作成</td></tr>
+          <tr><td><code>gitteam config validate</code> / <code>show</code> / <code>capabilities</code></td><td>設定の検証 / 表示 / 使える機能</td></tr>
+          <tr><td><code>gitteam config trust</code> / <code>untrust</code> / <code>trusted</code></td><td>作業フォルダーで見つかった設定の信頼登録 / 解除 / 一覧</td></tr>
+          <tr><td><code>gitteam repo init NAME</code></td><td>リポジトリの作成と標準の適用</td></tr>
+          <tr><td><code>gitteam repo settings|protect|access NAME</code>、<code>gitteam repo labels sync NAME [--prune]</code></td><td>個別適用</td></tr>
+          <tr><td><code>gitteam team sync [--repo NAME] [--skip-repos]</code></td><td>チーム・メンバー・権限の反映</td></tr>
+          <tr><td><code>gitteam team invite USER [--team T] [--repo R] [--permission push]</code></td><td>招待</td></tr>
+          <tr><td><code>gitteam ops branch new TYPE "説明" [--issue N]</code></td><td>ブランチ作成</td></tr>
+          <tr><td><code>gitteam ops branch check</code> / <code>gitteam ops commit check</code></td><td>ルールの検証（違反時は終了コード 1）</td></tr>
+          <tr><td><code>gitteam ops pr create [--draft]</code></td><td>PR 作成</td></tr>
+          <tr><td><code>gitteam ops release 1.4.0</code></td><td>リリース</td></tr>
+          <tr><td><code>gitteam ops hooks install [--shared|--local]</code></td><td>自動チェックの導入</td></tr>
+          <tr><td><code>gitteam dev setup --name "名前" --email you@example.com</code></td><td>PC の git 設定</td></tr>
+          <tr><td><code>gitteam dev onboard --dir ~/work</code></td><td>新メンバーのセットアップとクローン</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="safety">
+      <h2>9. 安全のしくみ</h2>
+      <div class="card-grid">
+        <div class="card card--accent-green">
+          <div class="card-label">確認してから実行</div>
+          <div class="card-value">2 段階</div>
+          <div class="card-detail">「内容を確認する」は何も変更せず、これから行う操作を一覧表示。「実行する」を押したときだけ反映されます</div>
+        </div>
+        <div class="card card--accent-blue">
+          <div class="card-label">画面の公開範囲</div>
+          <div class="card-value">この PC のみ</div>
+          <div class="card-detail">localhost だけで待ち受け。他の PC からは接続できません</div>
+        </div>
+        <div class="card card--accent-amber">
+          <div class="card-label">設定ファイルの信頼</div>
+          <div class="card-value">明示的に信頼</div>
+          <div class="card-detail">クローンしたリポジトリに入っていた設定は、確認して「信頼する」を押すまで使いません</div>
+        </div>
+        <div class="card card--accent-red">
+          <div class="card-label">認証情報</div>
+          <div class="card-value">保存しない</div>
+          <div class="card-detail">GitHub への接続は gh に任せ、gitteam はトークンを持ちません</div>
+        </div>
+      </div>
+      <h3>「未信頼の設定ファイル」と表示されたら</h3>
+      <p>
+        他の人が作ったリポジトリをクローンし、その中に <code>gitteam.yaml</code> が入っていた場合に表示されます。設定ファイルは git の設定や自動チェックの内容を変えられるため、
+        <strong>中身を確認してから</strong>サイドバーの「この設定ファイルを信頼する」を押してください（CLI では <code>gitteam config trust</code>）。自分で「はじめに」画面から作った設定は自動的に信頼されます。
+      </p>
+      <h3>設定に書けないもの</h3>
+      <p>安全のため、設定の保存時に次の内容は拒否されます。</p>
+      <ul>
+        <li>git にプログラムを実行させる設定（<code>core.fsmonitor</code>、<code>core.sshCommand</code>、<code>credential.helper</code>、<code>core.hooksPath</code> など）と、<code>!</code> で始まるエイリアス</li>
+        <li>ブランチ命名の正規表現や種別名などに含まれる引用符・セミコロン・空白などの特殊文字（自動チェックのスクリプトに埋め込まれるため）</li>
+      </ul>
+      <p>詳しくは <code>SECURITY.md</code> を参照してください。</p>
+    </section>
+
+    <section id="trouble">
+      <h2>10. 困ったときは</h2>
+      <table class="spec-table">
+        <thead><tr><th>症状</th><th>原因</th><th>対処</th></tr></thead>
+        <tbody>
+          <tr><td>「GitHub にログインできていません」</td><td>gh が未ログイン、またはトークン失効</td><td>ターミナルで <code>gh auth login</code> を実行し、「はじめに」の「もう一度確認する」</td></tr>
+          <tr><td>「権限が足りません」</td><td>組織の管理者でない、または gh に admin:org 権限がない</td><td><code>gh auth refresh -s admin:org</code> を実行。組織のオーナーに権限を確認</td></tr>
+          <tr><td>「見つかりませんでした」</td><td>オーナー名・リポジトリ名・チーム名の綴り違い、またはアクセス権なし</td><td>「状態を見る」の診断で owner の種別（User / Organization）と利用形態が合っているか確認</td></tr>
+          <tr><td>main ブランチの保護が「スキップ」される</td><td>無料プランの非公開リポジトリ</td><td>公開リポジトリにするか、有料プランへ。「使える機能の確認」で条件を表示できます</td></tr>
+          <tr><td>「未信頼の設定ファイル」</td><td>作業フォルダーで見つかった設定が未信頼</td><td>内容を確認し「この設定ファイルを信頼する」</td></tr>
+          <tr><td>「この場所の設定ファイルは使えません」</td><td>許可された場所以外のパスを指定した</td><td>プロジェクト配下、または <code>~/.config/gitteam/</code> に置く</td></tr>
+          <tr><td>コミットが拒否される（hooks）</td><td>メッセージやブランチ名がルール違反</td><td>「日々の作業」でメッセージを確認。<code>feat: 説明</code> の形に直す</td></tr>
+          <tr><td>画面が古いまま / 変更が反映されない</td><td>起動中のサーバーがファイル変更を拾っていない</td><td>ターミナルで Ctrl+C して <code>start_ui.bat</code> から起動し直す</td></tr>
+          <tr><td>ポート 8501 が使用中</td><td>別の画面が起動している</td><td>既存の画面を終了するか、<code>streamlit run ui/streamlit_app.py --server.port 8502</code></td></tr>
+          <tr><td>「working tree is not clean」（リリース時）</td><td>コミットしていない変更がある</td><td>先にコミットまたは退避（stash）する</td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-info">
+        <div class="callout-title">それでも解決しないとき</div>
+        「状態を見る」→「診断を実行」の結果と、エラーの「詳細ログ」を添えて管理者に相談してください。詳細ログには実行したコマンドと GitHub からの応答がそのまま残ります（トークンは含まれません）。
+      </div>
+    </section>
+
+    <section id="glossary">
+      <h2>11. 用語集</h2>
+      <div class="glossary">
+        <div class="glossary-item"><div class="glossary-term">オーナー</div><div class="glossary-def">リポジトリを所有する GitHub アカウント。組織名または自分のユーザー名。</div></div>
+        <div class="glossary-item"><div class="glossary-term">利用形態</div><div class="glossary-def">個人アカウント / 組織（Organization）/ 組織（GitHub Enterprise）のどれで使うか。使える機能が変わる。</div></div>
+        <div class="glossary-item"><div class="glossary-term">リポジトリ</div><div class="glossary-def">プロジェクトのファイルと変更履歴をまとめて保管する場所。</div></div>
+        <div class="glossary-item"><div class="glossary-term">可視性（公開範囲）</div><div class="glossary-def">private=関係者のみ、public=誰でも閲覧可、internal=組織内の全員（Enterprise のみ）。</div></div>
+        <div class="glossary-item"><div class="glossary-term">main ブランチ</div><div class="glossary-def">完成したコードが集まる本流。直接書き換えず PR 経由で取り込む。</div></div>
+        <div class="glossary-item"><div class="glossary-term">ブランチ保護（Rulesets）</div><div class="glossary-def">main を守るルール。レビュー承認なしのマージや履歴の書き換えを GitHub が止める。</div></div>
+        <div class="glossary-item"><div class="glossary-term">CODEOWNERS</div><div class="glossary-def">ファイルごとの担当者を書いたファイル。PR を出すと担当者が自動でレビュアーになる。</div></div>
+        <div class="glossary-item"><div class="glossary-term">ラベル</div><div class="glossary-def">Issue や PR に付ける色付きのタグ（bug、enhancement など）。</div></div>
+        <div class="glossary-item"><div class="glossary-term">チーム / コラボレーター</div><div class="glossary-def">組織内のメンバーのグループ / 個人リポジトリに招待された共同作業者。</div></div>
+        <div class="glossary-item"><div class="glossary-term">権限</div><div class="glossary-def">pull=閲覧、triage=Issue 整理、push=書き込み、maintain=一部設定、admin=すべて。</div></div>
+        <div class="glossary-item"><div class="glossary-term">雛形ファイル</div><div class="glossary-def">README、.gitignore、PR テンプレート、CI 設定、git hooks など、新しいリポジトリに最初から入れる標準ファイル。</div></div>
+        <div class="glossary-item"><div class="glossary-term">Conventional Commits</div><div class="glossary-def">「種類: 説明」の形でコミットメッセージを書くルール。履歴が読みやすくなりリリースノートを自動生成できる。</div></div>
+        <div class="glossary-item"><div class="glossary-term">git hooks</div><div class="glossary-def">コミットや push の直前に自動で走るチェック。</div></div>
+        <div class="glossary-item"><div class="glossary-term">プルリクエスト（PR）</div><div class="glossary-def">自分のブランチの変更を main に取り込んでほしいという依頼。レビュー後にマージ。</div></div>
+        <div class="glossary-item"><div class="glossary-term">リリース</div><div class="glossary-def">バージョン番号のタグを付け、変更点をまとめて公開すること。</div></div>
+        <div class="glossary-item"><div class="glossary-term">gh（GitHub CLI）</div><div class="glossary-def">ターミナルから GitHub を操作する公式ツール。gitteam の接続と認証を担う。</div></div>
+        <div class="glossary-item"><div class="glossary-term">内容の確認（dry-run）</div><div class="glossary-def">何も変更せず、これから行う操作だけを表示すること。</div></div>
+        <div class="glossary-item"><div class="glossary-term">squash マージ</div><div class="glossary-def">PR の複数コミットを 1 つにまとめて main に取り込む方式。</div></div>
+      </div>
+    </section>
+
+    <section id="appendix">
+      <h2>付録</h2>
+      <h3>A. ファイル構成</h3>
+<div class="tree-view">
+<span class="dir">git_team/</span>
+├── start_ui.bat / start_ui.ps1 / start_ui.sh   <span class="comment">← 画面の起動（初回セットアップ込み）</span>
+├── gitteam.yaml                                <span class="comment">← チームの設定（自分で作成。公開しない）</span>
+├── <span class="dir">gitteam/</span>                                   <span class="comment">← CLI とコアロジック</span>
+│   ├── <span class="dir">commands/</span>                              <span class="comment">← repo / team / ops / dev / doctor / config</span>
+│   └── <span class="dir">templates/</span>                             <span class="comment">← 設定例と雛形ファイル</span>
+├── <span class="dir">ui/</span>                                        <span class="comment">← Web UI（Streamlit）</span>
+│   └── <span class="dir">app_pages/</span>                             <span class="comment">← 8 ページ</span>
+├── <span class="dir">docs/</span>
+│   ├── manual.html                             <span class="comment">← この取扱説明書</span>
+│   └── publishing-checklist.md                 <span class="comment">← 公開前チェックリスト</span>
+├── spec.md                                     <span class="comment">← 仕様書</span>
+├── README.md / SECURITY.md / LICENSE
+└── <span class="dir">tests/</span>                                     <span class="comment">← 自動テスト</span>
+</div>
+      <h3>B. 関連文書との対応</h3>
+      <table class="spec-table">
+        <thead><tr><th>この説明書の章</th><th>対応する文書・節</th><th>扱い</th></tr></thead>
+        <tbody>
+          <tr><td>1. できること</td><td>spec.md §1 目的と背景、§1.1 設計目標</td><td><span class="badge badge-confirmed">要約</span></td></tr>
+          <tr><td>2. 動作環境</td><td>spec.md §3.2 依存関係、README「インストール」</td><td><span class="badge badge-confirmed">保持</span></td></tr>
+          <tr><td>3. インストールと起動</td><td>README「Web UI」、start_ui.*</td><td><span class="badge badge-confirmed">保持</span></td></tr>
+          <tr><td>4. 初期設定</td><td>spec.md §6.4「はじめに」、ui/app_pages/start.py</td><td><span class="badge badge-confirmed">保持</span></td></tr>
+          <tr><td>5. 画面の説明</td><td>spec.md §6.4 Web UI</td><td><span class="badge badge-confirmed">保持</span></td></tr>
+          <tr><td>6. 日々の作業</td><td>spec.md §6.3 規約の検証仕様</td><td><span class="badge badge-confirmed">要約</span></td></tr>
+          <tr><td>7. 設定の編集</td><td>spec.md §4 設定ファイル</td><td><span class="badge badge-confirmed">要約</span></td></tr>
+          <tr><td>8. コマンド</td><td>spec.md §6.1 CLI コマンド</td><td><span class="badge badge-confirmed">要約</span></td></tr>
+          <tr><td>9. 安全のしくみ</td><td>spec.md §7 セキュリティ要件、SECURITY.md</td><td><span class="badge badge-confirmed">要約</span></td></tr>
+          <tr><td>10. 困ったときは</td><td>ui/services.py のエラーヒント、用語集 FAQ</td><td><span class="badge badge-inferred">整理</span></td></tr>
+          <tr><td>11. 用語集</td><td>ui/glossary.py</td><td><span class="badge badge-confirmed">保持</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer style="border-top:1px solid var(--color-border); padding-top:1rem; font-size:0.8125rem; color:var(--color-text-muted);">
+      gitteam 0.1.0 取扱説明書 - 2026-09-07 作成。この文書は外部リソースを読み込まない単一の HTML ファイルです（図はインライン SVG）。
+    </footer>
+  </main>
+</div>
+
+
+<script>
+  // Highlight the current section in the table of contents while scrolling.
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+    var targets = links.map(function (a) { return document.querySelector(a.getAttribute('href')); }).filter(Boolean);
+    function update() {
+      var y = window.scrollY + 100, current = targets[0];
+      targets.forEach(function (t) { if (t.offsetTop <= y) current = t; });
+      links.forEach(function (a) { a.classList.toggle('active', current && a.getAttribute('href') === '#' + current.id); });
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+  })();
+</script>
+
+</body>
+</html>

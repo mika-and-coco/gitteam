@@ -207,6 +207,25 @@ def test_readable_config_text_refuses_non_gitteam_yaml(isolated_config_home: Pat
     real.write_text("owner: acme\n", encoding="utf-8")
     text, error = svc.readable_config_text(real)
     assert text == "owner: acme\n" and error is None
+    # a broken gitteam.yaml must stay editable (text returned with a warning)
+    real.write_text("owner: acme\nmode: [broken\n", encoding="utf-8")
+    text, error = svc.readable_config_text(real)
+    assert text is not None and error
+
+
+def test_friendly_error_prefers_path_hint_over_404():
+    hint = svc.friendly_error("'git' was not found on PATH. Install it and retry.")
+    assert hint and "インストール" in hint and "綴り" not in hint
+
+
+def test_config_path_is_absolute(isolated_config_home: Path):
+    at = _app(isolated_config_home / "gitteam.yaml").run()
+    assert Path(at.session_state["cfg_path"]).is_absolute()
+
+
+def test_local_repo_info_survives_missing_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("PATH", str(tmp_path))  # no git on PATH
+    assert svc.local_repo_info(tmp_path)["is_repo"] is None
 
 
 def test_wizard_refuses_output_outside_allowed_dirs(tmp_path: Path):

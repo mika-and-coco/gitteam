@@ -187,6 +187,9 @@ class Gh:
     def team_add_repo(self, org: str, slug: str, owner: str, repo: str, permission: str) -> None:
         self.api(f"orgs/{org}/teams/{slug}/repos/{owner}/{repo}", "PUT", {"permission": permission})
 
+    def org_membership(self, org: str, user: str) -> dict[str, Any] | None:
+        return self.api_optional(f"orgs/{org}/memberships/{user}")
+
     def org_add_member(self, org: str, user: str, role: str = "member") -> None:
         self.api(f"orgs/{org}/memberships/{user}", "PUT", {"role": role})
 

@@ -138,5 +138,5 @@ with hooks_tab:
         default="shared",
     )
     if st.button("内容を確認する", icon=":material/visibility:", disabled=not has_repo, key="hooks_confirm"):
-        svc.stage_action("ops_hooks", ops_cmd.hooks_install, mode == "shared", cwd=repo_path)
+        svc.stage_action("ops_hooks", ops_cmd.hooks_install, (mode or "shared") == "shared", cwd=repo_path)
     svc.render_action("ops_hooks", execute_label="自動チェックを入れる")

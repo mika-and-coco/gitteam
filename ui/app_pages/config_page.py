@@ -130,7 +130,7 @@ with simple_tab:
             subject_max = rc1.number_input(
                 "コミット件名の最大文字数",
                 min_value=20,
-                max_value=200,
+                max_value=max(200, cfg.conventions.commit_subject_max),
                 value=cfg.conventions.commit_subject_max,
                 help=gl.help_text("conventional_commits"),
             )
@@ -154,29 +154,34 @@ with simple_tab:
 
         if saved:
 
+            def cell(value: object) -> str:
+                if value is None or (isinstance(value, float) and value != value):  # NaN from data_editor
+                    return ""
+                return str(value).strip()
+
             def split_names(text: object) -> list[str]:
-                return [x.strip() for x in str(text or "").split(",") if x.strip()]
+                return [x.strip() for x in cell(text).split(",") if x.strip()]
 
             teams = None
             collaborators = None
             if teams_df is not None:
                 teams = [
                     {
-                        "name": str(row["チーム名"]).strip(),
-                        "description": str(row.get("説明") or "").strip(),
-                        "permission": str(row["権限"]),
+                        "name": cell(row["チーム名"]),
+                        "description": cell(row.get("説明")),
+                        "permission": cell(row["権限"]) or "push",
                         "members": split_names(row.get("メンバー")),
                         "maintainers": split_names(row.get("メンテナー")),
                         "repos": ["*"],
                     }
                     for _, row in teams_df.iterrows()
-                    if str(row.get("チーム名") or "").strip()
+                    if cell(row.get("チーム名"))
                 ]
             if collabs_df is not None:
                 collaborators = [
-                    {"user": str(row["ユーザー名"]).strip(), "permission": str(row["権限"]), "repos": ["*"]}
+                    {"user": cell(row["ユーザー名"]), "permission": cell(row["権限"]) or "push", "repos": ["*"]}
                     for _, row in collabs_df.iterrows()
-                    if str(row.get("ユーザー名") or "").strip()
+                    if cell(row.get("ユーザー名"))
                 ]
             error = svc.save_simple_settings(
                 path,
@@ -202,6 +207,7 @@ with simple_tab:
             if error:
                 st.error(error, icon=":material/error:")
             else:
+                svc.reset_config_editor()
                 st.toast("保存しました", icon=":material/save:")
                 st.rerun()
 
@@ -218,6 +224,8 @@ with yaml_tab:
     if file_text is None:
         st.error(read_error, icon=":material/error:")
         st.stop()
+    if read_error:
+        st.warning(read_error, icon=":material/warning:")
     st.text_area("gitteam.yaml", value=file_text, key="config_editor", height=520, label_visibility="collapsed")
     editor_text = st.session_state.get("config_editor", file_text)
     with st.container(horizontal=True):
@@ -235,6 +243,7 @@ with yaml_tab:
             )
             if save_clicked:
                 path.write_text(editor_text, encoding="utf-8", newline="\n")
+                svc.reset_config_editor()
                 st.toast("保存しました", icon=":material/save:")
                 st.rerun()
     if cfg:

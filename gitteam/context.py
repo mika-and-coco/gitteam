@@ -18,13 +18,19 @@ class AppContext:
     runner: Runner
     gh: Gh
     config_path: Path | None = None
+    discover: bool = True  # False: never search cwd/user dirs (the web UI decides the path itself)
     _config: cfgmod.Config | None = field(default=None, repr=False)
     _plan_cache: cfgmod.Plan | None = field(default=None, repr=False)
 
     @classmethod
-    def create(cls, config_path: Path | None, dry_run: bool, verbose: bool) -> "AppContext":
+    def create(cls, config_path: Path | None, dry_run: bool, verbose: bool, discover: bool = True) -> "AppContext":
         runner = Runner(dry_run=dry_run, verbose=verbose)
-        return cls(runner=runner, gh=Gh(runner), config_path=config_path)
+        return cls(runner=runner, gh=Gh(runner), config_path=config_path, discover=discover)
+
+    def _discover(self) -> cfgmod.DiscoveredConfig | None:
+        if self.config_path is None and not self.discover:
+            return None
+        return cfgmod.discover_config(self.config_path)
 
     @property
     def dry_run(self) -> bool:
@@ -34,7 +40,7 @@ class AppContext:
 
     def load_config(self) -> cfgmod.Config:
         if self._config is None:
-            found = cfgmod.discover_config(self.config_path)
+            found = self._discover()
             if found is None:
                 raise ConfigError(
                     "no gitteam.yaml found (searched the current directory and parents, "
@@ -54,12 +60,9 @@ class AppContext:
 
         An untrusted config is never silently ignored: the user must decide.
         """
-        try:
-            return self.load_config()
-        except UntrustedConfigError:
-            raise
-        except ConfigError:
+        if self._config is None and self._discover() is None:
             return cfgmod.default_config()
+        return self.load_config()  # a broken, missing (--config) or untrusted config is an error, not a silent default
 
     # ------------------------------------------------------------------ plan / capabilities
 

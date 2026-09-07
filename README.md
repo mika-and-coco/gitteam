@@ -28,7 +28,7 @@ Git / GitHub のチーム初期設定と日常運用を 1 つの CLI にまと�
 
 ## インストール
 
-前提: Python 3.11+、`git` 2.23+、`gh` 2.44+（`gh auth login` 済み）。
+前提: Python 3.11+、`git` 2.23+、`gh` 2.47+（`gh auth login` 済み）。
 
 ```bash
 python -m venv .venv
@@ -206,3 +206,13 @@ streamlit run ui/streamlit_app.py   # 手動起動
   `credential.helper`、`core.hooksPath`、`!` で始まるエイリアスなど）は設定の検証で拒否されます。
 * **hooks / Actions に埋め込まれる値は安全な文字集合に制限**され、シェルや YAML への注入はできません。
 * UI から指定できる設定ファイルはプロジェクト配下またはユーザー設定ディレクトリ配下の `.yaml` に限られ、gitteam の設定として読める内容のときだけ表示します。
+
+## ドキュメント
+
+| 文書 | 内容 |
+| --- | --- |
+| [docs/manual.html](docs/manual.html) | 取扱説明書（利用者向け、単一 HTML。ブラウザで開いてください） |
+| [spec.md](spec.md) | 仕様書（機能・設定スキーマ・能力マトリクス・セキュリティ要件） |
+| [SECURITY.md](SECURITY.md) | セキュリティポリシーと脆弱性の報告先 |
+| [docs/publishing-checklist.md](docs/publishing-checklist.md) | 公開前チェックリスト |
+| [docs/design.html](docs/design.html) | 設計書（アーキテクチャ、主要フロー、データモデル、セキュリティ設計、テスト設計。単一 HTML） |

@@ -40,8 +40,12 @@ with st.sidebar:
     if cfg:
         st.badge(f"設定済み: {cfg.owner}", icon=":material/check:", color="green")
     else:
-        status = svc.trust_status(svc.config_path())
-        if status == "untrusted":
+        location_problem = svc.check_config_path(svc.config_path())
+        status = "blocked" if location_problem else svc.trust_status(svc.config_path())
+        if status == "blocked":
+            st.badge("この場所の設定は使えません", icon=":material/block:", color="red")
+            st.caption(location_problem)
+        elif status == "untrusted":
             st.badge("未信頼の設定ファイル", icon=":material/gpp_maybe:", color="orange")
             st.caption(
                 "このフォルダーにある gitteam.yaml は、あなたが作成したものではない可能性があります。"

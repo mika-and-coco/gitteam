@@ -441,6 +441,14 @@ def validate(cfg: Config) -> None:
         raise ConfigError("invalid configuration:\n  - " + "\n  - ".join(problems))
 
 
+def is_valid_login(value: str) -> bool:
+    return bool(_SAFE_LOGIN_RE.match(value or ""))
+
+
+def is_valid_repo_name(value: str) -> bool:
+    return bool(_SAFE_REPO_RE.match(value or ""))
+
+
 def _safety_problems(cfg: Config) -> list[str]:
     """Reject values that could inject into generated hooks/workflows or make git run programs."""
     problems: list[str] = []

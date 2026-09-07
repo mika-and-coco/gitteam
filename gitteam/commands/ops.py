@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import stat
 import tempfile
 from pathlib import Path
@@ -8,7 +9,7 @@ from pathlib import Path
 from .. import conventions as conv
 from .. import scaffold as scaffoldmod
 from ..context import AppContext
-from ..errors import ConventionError, GitTeamError
+from ..errors import CommandError, ConventionError, GitTeamError
 from ..gitcmd import Git
 from ..ui import DRY_RUN, get_console, info, ok, warn
 
@@ -33,7 +34,10 @@ def branch_new(ctx: AppContext, branch_type: str, description: str, issue: int |
     base_branch = base or cfg.repo.default_branch
     start_point: str | None = None
     if git.remote_url():
-        git.fetch("origin", base_branch)
+        try:
+            git.fetch("origin", base_branch)
+        except CommandError:
+            warn(f"could not fetch origin/{base_branch}; starting from the local branch instead")
         start_point = f"origin/{base_branch}" if git.rev(f"refs/remotes/origin/{base_branch}") or ctx.dry_run else None
     if start_point is None and git.branch_exists(base_branch):
         start_point = base_branch
@@ -73,7 +77,11 @@ def commit_check(ctx: AppContext, rev_range: str | None, message_file: Path | No
             default = cfg.repo.default_branch
             upstream = f"origin/{default}" if git.rev(f"refs/remotes/origin/{default}") else default
             rev_range = f"{upstream}..HEAD"
-        for commit in git.commits(rev_range):
+        try:
+            commits = git.commits(*shlex.split(rev_range))
+        except CommandError as exc:
+            raise ConventionError(f"invalid revision range '{rev_range}': {exc.stderr.strip() or exc}") from None
+        for commit in commits:
             full = commit.subject + ("\n\n" + commit.body if commit.body else "")
             messages.append((commit.sha[:8], full))
         if not messages:
@@ -112,12 +120,20 @@ def hooks_install(ctx: AppContext, shared: bool | None) -> None:
         for path in result.written:
             info(f"{verb} {path.relative_to(root)}")
         _make_executable(hooks_dir)
+        if result.written:
+            # Stage the hooks and record the executable bit so clones on macOS/Linux can run them.
+            git.add(*[p.relative_to(root).as_posix() for p in result.written])
+            git.chmod_executable(*result.executable)
         git.config_set("core.hooksPath", ".githooks", scope="local")
         ok("core.hooksPath = .githooks (shared hooks enabled for this clone)")
         if result.written:
-            info("commit the .githooks/ directory so the whole team shares these hooks")
+            info("the .githooks/ files are staged; commit them so the whole team shares these hooks")
         return
-    hooks_dir = root / ".git" / "hooks"
+    # Unset first: `git rev-parse --git-path hooks` honours core.hooksPath.
+    if git.config_get("core.hooksPath", scope="local"):
+        git.config_unset("core.hooksPath", scope="local")
+        info("removed local core.hooksPath so the repository's own hooks directory is used")
+    hooks_dir = git.hooks_dir()
     variables = scaffoldmod.template_variables(cfg, root.name)
     for relative in scaffoldmod.HOOK_FILES:
         target = hooks_dir / Path(relative).name
@@ -129,7 +145,7 @@ def hooks_install(ctx: AppContext, shared: bool | None) -> None:
         target.write_text(content, encoding="utf-8", newline="\n")
         info(f"wrote {target}")
     _make_executable(hooks_dir)
-    ok("local hooks installed (.git/hooks)")
+    ok(f"local hooks installed ({hooks_dir})")
 
 
 def _make_executable(directory: Path) -> None:
@@ -168,9 +184,9 @@ def pr_create(
             raise ConventionError(f"branch '{branch}': {'; '.join(problems)}")
 
     git.fetch("origin", base_branch)
-    if git.upstream_of(branch) is None:
-        info(f"pushing {branch} to origin")
-        git.push("origin", branch, set_upstream=True)
+    first_push = git.upstream_of(branch) is None
+    info(f"pushing {branch} to origin")
+    git.push("origin", branch, set_upstream=first_push)
     rev_range = f"origin/{base_branch}..HEAD" if git.rev(f"refs/remotes/origin/{base_branch}") else f"{base_branch}..HEAD"
     commits = git.commits(rev_range)
     if not commits and not ctx.dry_run:
@@ -209,8 +225,9 @@ def pr_create(
                 labels=all_labels,
                 cwd=git.toplevel(),
             )
-        except GitTeamError as exc:
-            if all_labels and "label" in str(exc).lower():
+        except CommandError as exc:
+            stderr = (exc.stderr or "").lower()
+            if all_labels and "label" in stderr and ("not found" in stderr or "could not" in stderr):
                 warn("some labels do not exist in the repository; retrying without labels")
                 proc = ctx.gh.pr_create(
                     base=base_branch,

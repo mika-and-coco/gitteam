@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gitteam 設計書</title>
+<style>
+:root {
+  /* Design tokens — お好みのブランドカラーに変更してください */
+  --color-bg: #ffffff;
+  --color-surface: #f5f8f7;
+  --color-surface-alt: #eaf0ee;
+  --color-border: #dfe7e5;
+  --color-border-strong: #c5d0cd;
+  --color-text: #111111;
+  --color-text-secondary: #626262;
+  --color-text-muted: #969696;
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-primary-light: #eff6ff;
+  --color-success: #16a34a;
+  --color-success-light: #dcfce7;
+  --color-warning: #e8910c;
+  --color-warning-light: #fef6e8;
+  --color-danger: #e03131;
+  --color-danger-light: #fdeaea;
+  --color-info: #0284c7;
+  --color-info-light: #e8f4fd;
+  --color-purple: #7048c6;
+  --color-purple-light: #f0ecf9;
+  --font-sans: 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', 'Hiragino Sans', 'メイリオ', Meiryo, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.07);
+  --content-width: 820px;
+  --toc-width: 220px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ── */
+.doc-header {
+  border-bottom: 3px solid var(--color-primary);
+  padding: 3rem 2rem 2rem;
+  max-width: calc(var(--content-width) + var(--toc-width) + 4rem);
+  margin: 0 auto;
+}
+.doc-logo { margin-bottom: 1.25rem; }
+.doc-logo svg { display: block; }
+.doc-header h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.5rem;
+}
+.doc-header .subtitle {
+  font-size: 1.125rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 1.25rem;
+}
+.doc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.doc-meta-item {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: 0.25rem 0.625rem;
+}
+.doc-meta-item strong { color: var(--color-text); font-weight: 600; }
+
+.doc-layout {
+  display: grid;
+  grid-template-columns: var(--toc-width) 1fr;
+  gap: 2rem;
+  max-width: calc(var(--content-width) + var(--toc-width) + 4rem);
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* ── TOC Sidebar ── */
+.toc {
+  position: sticky;
+  top: 1.5rem;
+  align-self: start;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  font-size: 0.8125rem;
+  padding-right: 1rem;
+  border-right: 1px solid var(--color-border);
+}
+.toc-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.75rem;
+}
+.toc ol {
+  list-style: none;
+  padding: 0;
+}
+.toc li { margin-bottom: 0.125rem; }
+.toc a {
+  display: block;
+  padding: 0.25rem 0.5rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-xs);
+  transition: all 0.15s;
+}
+.toc a:hover { color: var(--color-primary); background: var(--color-primary-light); }
+.toc a.active { color: var(--color-primary); font-weight: 600; background: var(--color-primary-light); }
+.toc .toc-sub { padding-left: 1rem; }
+.toc .toc-sub a { font-size: 0.75rem; }
+
+/* ── Main Content ── */
+.doc-main { max-width: var(--content-width); }
+.doc-main section {
+  margin-bottom: 3rem;
+  scroll-margin-top: 1.5rem;
+}
+.doc-main h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--color-primary);
+  color: var(--color-text);
+}
+.doc-main h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+.doc-main p { margin-bottom: 1rem; }
+.doc-main ul, .doc-main ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+.doc-main li { margin-bottom: 0.375rem; }
+
+/* ── Summary Cards ── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+.card-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+.card-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.375rem;
+}
+.card-detail {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.card--accent-blue { border-left: 3px solid var(--color-info); }
+.card--accent-green { border-left: 3px solid var(--color-primary); }
+.card--accent-amber { border-left: 3px solid var(--color-warning); }
+.card--accent-red { border-left: 3px solid var(--color-danger); }
+
+/* ── Badges ── */
+.badge {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.1875rem 0.5rem;
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.badge-must   { background: var(--color-danger-light); color: var(--color-danger); }
+.badge-should { background: var(--color-warning-light); color: var(--color-warning); }
+.badge-could  { background: var(--color-info-light); color: var(--color-info); }
+.badge-wont   { background: var(--color-surface-alt); color: var(--color-text-muted); }
+
+.badge-confirmed  { background: var(--color-success-light); color: var(--color-success); }
+.badge-inferred   { background: var(--color-purple-light); color: var(--color-purple); }
+.badge-assumption { background: var(--color-warning-light); color: var(--color-warning); }
+.badge-open       { background: var(--color-info-light); color: var(--color-info); }
+
+.badge-risk-high   { background: var(--color-danger-light); color: var(--color-danger); }
+.badge-risk-medium { background: var(--color-warning-light); color: var(--color-warning); }
+.badge-risk-low    { background: var(--color-success-light); color: var(--color-success); }
+
+/* ── Tables ── */
+.spec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin: 1rem 0 1.5rem;
+}
+.spec-table thead { background: var(--color-surface); }
+.spec-table th {
+  font-weight: 600;
+  text-align: left;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 2px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.spec-table td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.spec-table tbody tr:hover { background: var(--color-surface); }
+.spec-table code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  background: var(--color-surface-alt);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-xs);
+}
+
+/* ── Callouts ── */
+.callout {
+  border-left: 3px solid var(--color-border-strong);
+  background: var(--color-surface);
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.9375rem;
+}
+.callout-title {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.375rem;
+}
+.callout-info    { border-left-color: var(--color-info);    background: var(--color-info-light); }
+.callout-info .callout-title { color: var(--color-info); }
+.callout-warning { border-left-color: var(--color-warning); background: var(--color-warning-light); }
+.callout-warning .callout-title { color: var(--color-warning); }
+.callout-danger  { border-left-color: var(--color-danger);  background: var(--color-danger-light); }
+.callout-danger .callout-title { color: var(--color-danger); }
+.callout-success { border-left-color: var(--color-success); background: var(--color-success-light); }
+.callout-success .callout-title { color: var(--color-success); }
+
+/* ── Diagrams ── */
+.diagram-container {
+  margin: 1.5rem 0;
+  text-align: center;
+  cursor: zoom-in;
+}
+.diagram-container .mermaid {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.diagram-container:hover .mermaid,
+.diagram-container:focus-visible .mermaid {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+.diagram-container:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: var(--radius);
+}
+.diagram-container::after {
+  content: "Click to enlarge";
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.diagram-container:hover::after,
+.diagram-container:focus-visible::after { opacity: 1; }
+.diagram-container figcaption {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* ── Lightbox Modal (Pan & Zoom) ── */
+.diagram-modal {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(12px);
+  transition: opacity 0.28s ease-out, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.28s;
+}
+.diagram-modal.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.diagram-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.diagram-modal-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.diagram-modal-btn {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: var(--radius-xs);
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.diagram-modal-btn:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.diagram-modal-zoom-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  min-width: 3rem;
+  text-align: center;
+}
+.diagram-modal-caption-bar {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.diagram-modal-viewport {
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  background: var(--color-surface);
+  position: relative;
+}
+.diagram-modal-viewport:active { cursor: grabbing; }
+.diagram-modal-content {
+  transform-origin: 0 0;
+  padding: 2rem;
+}
+.diagram-modal-content svg {
+  max-width: none;
+  max-height: none;
+}
+
+@media print { .diagram-modal { display: none !important; } }
+
+/* ── Glossary ── */
+.glossary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.glossary-item {
+  padding: 0.875rem 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.glossary-term {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  margin-bottom: 0.25rem;
+}
+.glossary-def {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Risk Cards ── */
+.risk-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+.risk-card--high   { border-left: 3px solid var(--color-danger); }
+.risk-card--medium { border-left: 3px solid var(--color-warning); }
+.risk-card--low    { border-left: 3px solid var(--color-success); }
+.risk-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+.risk-title { font-weight: 600; font-size: 0.9375rem; }
+.risk-body  { font-size: 0.875rem; color: var(--color-text-secondary); }
+
+/* ── Open Questions ── */
+.question-list {
+  list-style: none;
+  padding: 0;
+}
+.question-list li {
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-xs);
+  margin-bottom: 0.5rem;
+  font-size: 0.9375rem;
+  background: var(--color-info-light);
+}
+.question-list li::before {
+  content: "?";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--color-info);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-right: 0.625rem;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* ── Directory Tree ── */
+.tree-view {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.8;
+  white-space: pre;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+.tree-view .dir { color: var(--color-primary-dark); font-weight: 600; }
+.tree-view .file { color: var(--color-text-secondary); }
+.tree-view .comment { color: var(--color-text-muted); font-style: italic; }
+
+/* ── Pyramid Chart ── */
+.pyramid { margin: 1.5rem 0; }
+.pyramid-level {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) 2fr;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.pyramid-bar {
+  border-radius: var(--radius-xs);
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.pyramid-bar .count {
+  font-size: 0.6875rem;
+  opacity: 0.8;
+  font-weight: 400;
+}
+.pyramid-detail {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+/* ── Code Blocks ── */
+pre {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  margin: 1rem 0;
+}
+
+/* ── Footer ── */
+.doc-footer {
+  border-top: 1px solid var(--color-border);
+  max-width: calc(var(--content-width) + var(--toc-width) + 4rem);
+  margin: 2rem auto 0;
+  padding: 1.5rem 2rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+.doc-footer p { margin-bottom: 0.25rem; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .doc-layout {
+    grid-template-columns: 1fr;
+    padding: 1.25rem;
+  }
+  .toc {
+    position: static;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    padding-right: 0;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+  }
+  .doc-header { padding: 2rem 1.25rem 1.5rem; }
+  .doc-header h1 { font-size: 1.75rem; }
+  .card-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── Print ── */
+@media print {
+  body { font-size: 11pt; }
+  .toc, .doc-meta { display: none; }
+  .doc-layout { display: block; }
+  .doc-header { padding: 1rem 0; border-bottom: 2px solid #000; }
+  .doc-main section { page-break-inside: avoid; }
+  .card { border: 1px solid #999; }
+  .badge { border: 1px solid currentColor; }
+  a { color: inherit; text-decoration: none; }
+  .doc-footer { border-top: 1px solid #000; }
+}
+</style>
+
+<style>
+/* Additions for the manual */
+pre { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      padding: 0.875rem 1rem; margin: 0.75rem 0 1.25rem; overflow-x: auto; font-size: 0.8125rem; line-height: 1.6; }
+pre code { font-family: var(--font-mono); }
+.doc-main p code, .doc-main li code, .doc-main td code { font-family: var(--font-mono); font-size: 0.8125rem;
+      background: var(--color-surface-alt); padding: 0.125rem 0.375rem; border-radius: var(--radius-xs); }
+kbd { font-family: var(--font-mono); font-size: 0.75rem; border: 1px solid var(--color-border-strong);
+      border-bottom-width: 2px; border-radius: 4px; padding: 0.0625rem 0.375rem; background: #fff; }
+.diagram-container svg { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 0.5rem; }
+.diagram-container { cursor: default; }
+.diagram-container::after { content: none; }
+@media (max-width: 900px) {
+  .doc-layout { grid-template-columns: 1fr; }
+  .toc { position: static; border-right: none; border-bottom: 1px solid var(--color-border); max-height: none; padding-bottom: 1rem; }
+  .card-grid { grid-template-columns: 1fr; }
+}
+@media print {
+  .toc { display: none; }
+  .doc-layout { grid-template-columns: 1fr; padding: 0; }
+  .doc-main section { break-inside: avoid-page; }
+}
+</style>
+
+</head>
+<body>
+<header class="doc-header">
+  <div class="doc-logo">
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+      <rect x="4" y="4" width="36" height="36" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+      <path d="M12 30h8V14h-8zM24 30h8V20h-8z" fill="#2563eb"/>
+    </svg>
+  </div>
+  <h1>gitteam 設計書</h1>
+  <p class="subtitle">Git / GitHub チーム初期設定・運用ツールのアーキテクチャ、データモデル、主要フロー、セキュリティ設計、テスト設計</p>
+  <div class="doc-meta">
+    <span class="doc-meta-item"><strong>種別:</strong> ソフトウェア設計書</span>
+    <span class="doc-meta-item"><strong>対象版:</strong> gitteam 0.1.0（main, 2026-09-07）</span>
+    <span class="doc-meta-item"><strong>作成日:</strong> 2026-09-07</span>
+    <span class="doc-meta-item"><strong>対象読者:</strong> 開発者・レビュアー</span>
+    <span class="doc-meta-item"><strong>出典:</strong> spec.md、ソースコード（gitteam/, ui/, tests/）</span>
+  </div>
+</header>
+
+<div class="doc-layout">
+  <nav class="toc" aria-label="目次">
+    <div class="toc-title">目次</div>
+    <ol>
+      <li><a href="#summary">1. 概要</a></li>
+      <li><a href="#decisions">2. 設計方針と決定事項</a></li>
+      <li><a href="#architecture">3. アーキテクチャ</a></li>
+      <li><a href="#modules">4. モジュール構成</a></li>
+      <li>
+        <a href="#flows">5. 主要フロー</a>
+        <ol class="toc-sub">
+          <li><a href="#flow-repo-init">5.1 repo init</a></li>
+          <li><a href="#flow-ui">5.2 UI の確認→実行</a></li>
+          <li><a href="#flow-config">5.3 設定の探索と信頼</a></li>
+          <li><a href="#flow-capabilities">5.4 能力判定</a></li>
+        </ol>
+      </li>
+      <li><a href="#data">6. データモデル</a></li>
+      <li><a href="#external">7. 外部インターフェース</a></li>
+      <li><a href="#artifacts">8. 生成物の設計</a></li>
+      <li><a href="#ui-design">9. Web UI の設計</a></li>
+      <li><a href="#security">10. セキュリティ設計</a></li>
+      <li><a href="#testing">11. テスト設計</a></li>
+      <li><a href="#extension">12. 拡張の手引き</a></li>
+      <li><a href="#risks">13. リスクと未決事項</a></li>
+      <li><a href="#appendix">付録</a></li>
+    </ol>
+  </nav>
+
+  <main class="doc-main">
+
+    <section id="summary">
+      <h2>1. 概要</h2>
+      <p>
+        gitteam は、チームの GitHub 標準を <code>gitteam.yaml</code> に記述し、CLI（typer）と Web UI（Streamlit）から GitHub とメンバーの PC に冪等に適用するツールである。
+        GitHub への接続と認証は <code>gh</code> CLI に委ね、自身は認証情報を保持しない。すべての変更操作は dry-run による事前確認を経て実行される。
+      </p>
+      <p>
+        設計の核は「<strong>純粋なコア</strong>（検証・計算・ペイロード生成）」と「<strong>副作用を持つ統合層</strong>（git / gh の実行）」の分離である。
+        ユースケース層はこの 2 つを組み合わせ、CLI と UI はユースケース層を共有する。これにより UI は CLI と同じ処理を同じ dry-run 基盤で実行できる。
+      </p>
+      <div class="card-grid">
+        <div class="card card--accent-blue">
+          <div class="card-label">コード規模</div>
+          <div class="card-value">約 5,100 行</div>
+          <div class="card-detail">Python（gitteam/ + ui/）。テストを除く</div>
+        </div>
+        <div class="card card--accent-green">
+          <div class="card-label">CLI コマンド</div>
+          <div class="card-value">25</div>
+          <div class="card-detail">doctor / config 7 / repo 5 / team 3 / ops 6 / dev 3</div>
+        </div>
+        <div class="card card--accent-amber">
+          <div class="card-label">自動テスト</div>
+          <div class="card-value">160</div>
+          <div class="card-detail">純粋コア 76 / 統合 10 / CLI 11 / セキュリティ 20 / UI 43</div>
+        </div>
+        <div class="card card--accent-red">
+          <div class="card-label">GitHub API</div>
+          <div class="card-value">24 エンドポイント</div>
+          <div class="card-detail">すべて <code>gh api</code> 経由。JSON ボディは標準入力で渡す</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="decisions">
+      <h2>2. 設計方針と決定事項</h2>
+      <table class="spec-table">
+        <thead><tr><th>ID</th><th>決定</th><th>理由</th><th>代替案と却下理由</th></tr></thead>
+        <tbody>
+          <tr><td>D-1</td><td>GitHub への接続は <code>gh</code> CLI に委ねる</td><td>トークン管理・ブラウザ認証・ページネーションを gh が担い、gitteam は秘密情報を持たない</td><td>PyGithub / Octokit 直接利用: トークン保管が必要になり、認証 UX も自作になる</td></tr>
+          <tr><td>D-2</td><td>純粋コアと統合層の分離</td><td>検証・ペイロード生成をネットワークなしで単体テストできる。UI と CLI で同一ロジックを共有</td><td>コマンドごとに直接 subprocess: テスト困難、dry-run の一貫性が保てない</td></tr>
+          <tr><td>D-3</td><td>dry-run は <code>Runner</code> で一元化（<code>mutating=True</code> の呼び出しを表示のみに置換）</td><td>全コマンドが自動的に dry-run 対応になる。UI の「内容を確認する」もこの出力を解析する</td><td>コマンドごとに if 分岐: 漏れが生じる</td></tr>
+          <tr><td>D-4</td><td>ブランチ保護の既定エンジンは Rulesets</td><td>パターン指定可、ブランチ未作成でも設定可、GitHub が投資している API</td><td>classic protection: 既存ブランチのみ、パターン不可。互換のため選択肢として残す</td></tr>
+          <tr><td>D-5</td><td>3 形態を <code>mode</code> + 自動判定 <code>plan</code> + 可視性から能力に写像する</td><td>使えない機能を実行前に理由付きでスキップでき、途中失敗を避ける</td><td>形態ごとの分岐をコマンド内に散在: 保守困難</td></tr>
+          <tr><td>D-6</td><td>UI の設定編集は ruamel.yaml のラウンドトリップで行う</td><td>生成した設定ファイルのコメント（説明）を保持できる</td><td>PyYAML の dump: コメントが消え、初心者向けの説明が失われる</td></tr>
+          <tr><td>D-7</td><td>作業ディレクトリで見つかった設定は明示的信頼まで使わない</td><td>クローンした他人のリポジトリ同梱の設定が git 設定や生成フックを変えるのを防ぐ（git の <code>safe.directory</code> と同じ考え方）</td><td>常に信頼: セキュリティレビューで High 相当の経路と判定</td></tr>
+          <tr><td>D-8</td><td>UI は変更操作を「確認→実行」の 2 段階に統一し、実行は確認時と同一の引数で行う</td><td>初心者の誤操作防止と、確認内容と実行内容の一致保証</td><td>グローバル dry-run トグル: 状態が 2 か所に分かれ分かりにくい（初期版で採用し撤回）</td></tr>
+          <tr><td>D-9</td><td>CLI メッセージは英語、UI は日本語</td><td>CLI は git / gh の出力と混在するため英語で統一。UI は対象読者に合わせて日本語化し、dry-run 行を日本語の操作説明に変換する</td><td>CLI も日本語化: 未決事項として保留（§13）</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="architecture">
+      <h2>3. アーキテクチャ</h2>
+      <figure class="diagram-container" tabindex="0">
+        <svg viewBox="0 0 780 470" width="100%" role="img" aria-label="レイヤ構成図">
+          <defs><marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#626262"/></marker></defs>
+          <g font-family="sans-serif" font-size="12">
+            <!-- interface layer -->
+            <rect x="10" y="10" width="760" height="80" rx="10" fill="#f5f8f7" stroke="#c5d0cd"/>
+            <text x="22" y="30" font-size="11" fill="#969696" font-weight="700">インターフェース層</text>
+            <rect x="40" y="40" width="300" height="40" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+            <text x="190" y="65" text-anchor="middle" fill="#1d4ed8" font-weight="700">CLI  gitteam/cli.py（typer）</text>
+            <rect x="440" y="40" width="300" height="40" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+            <text x="590" y="65" text-anchor="middle" fill="#1d4ed8" font-weight="700">Web UI  ui/streamlit_app.py + app_pages/</text>
+            <!-- services -->
+            <rect x="440" y="100" width="300" height="34" rx="8" fill="#f0ecf9" stroke="#7048c6" stroke-width="1.5"/>
+            <text x="590" y="122" text-anchor="middle" fill="#7048c6">ui/services.py（捕捉 / 確認→実行 / 要約）</text>
+            <line x1="590" y1="80" x2="590" y2="98" stroke="#626262" stroke-width="1.5" marker-end="url(#ar)"/>
+            <!-- use case layer -->
+            <rect x="10" y="150" width="760" height="80" rx="10" fill="#f5f8f7" stroke="#c5d0cd"/>
+            <text x="22" y="170" font-size="11" fill="#969696" font-weight="700">ユースケース層  gitteam/commands/</text>
+            <g fill="#fef6e8" stroke="#e8910c" stroke-width="1.5">
+              <rect x="40" y="185" width="105" height="34" rx="8"/><rect x="160" y="185" width="105" height="34" rx="8"/><rect x="280" y="185" width="105" height="34" rx="8"/>
+              <rect x="400" y="185" width="105" height="34" rx="8"/><rect x="520" y="185" width="105" height="34" rx="8"/><rect x="640" y="185" width="105" height="34" rx="8"/>
+            </g>
+            <g text-anchor="middle" fill="#9a5b00" font-weight="700">
+              <text x="92" y="207">repo</text><text x="212" y="207">team</text><text x="332" y="207">ops</text>
+              <text x="452" y="207">dev</text><text x="572" y="207">doctor</text><text x="692" y="207">config</text>
+            </g>
+            <line x1="190" y1="80" x2="190" y2="148" stroke="#626262" stroke-width="1.5" marker-end="url(#ar)"/>
+            <line x1="590" y1="134" x2="590" y2="148" stroke="#626262" stroke-width="1.5" marker-end="url(#ar)"/>
+            <!-- core + integration -->
+            <rect x="10" y="250" width="440" height="120" rx="10" fill="#f5f8f7" stroke="#c5d0cd"/>
+            <text x="22" y="270" font-size="11" fill="#969696" font-weight="700">コア層（純粋・副作用なし）</text>
+            <g fill="#dcfce7" stroke="#16a34a" stroke-width="1.5">
+              <rect x="30" y="285" width="125" height="30" rx="6"/><rect x="165" y="285" width="125" height="30" rx="6"/><rect x="300" y="285" width="135" height="30" rx="6"/>
+              <rect x="30" y="325" width="125" height="30" rx="6"/><rect x="165" y="325" width="125" height="30" rx="6"/><rect x="300" y="325" width="135" height="30" rx="6"/>
+            </g>
+            <g text-anchor="middle" fill="#15803d">
+              <text x="92" y="305">config</text><text x="227" y="305">capabilities</text><text x="367" y="305">conventions</text>
+              <text x="92" y="345">protection</text><text x="227" y="345">labels</text><text x="367" y="345">scaffold</text>
+            </g>
+            <rect x="470" y="250" width="300" height="120" rx="10" fill="#f5f8f7" stroke="#c5d0cd"/>
+            <text x="482" y="270" font-size="11" fill="#969696" font-weight="700">統合層（副作用あり）</text>
+            <rect x="490" y="285" width="260" height="30" rx="6" fill="#fdeaea" stroke="#e03131" stroke-width="1.5"/>
+            <text x="620" y="305" text-anchor="middle" fill="#b91c1c" font-weight="700">runner.Runner  dry-run / verbose</text>
+            <rect x="490" y="325" width="125" height="30" rx="6" fill="#fdeaea" stroke="#e03131" stroke-width="1.5"/>
+            <text x="552" y="345" text-anchor="middle" fill="#b91c1c">gh.Gh</text>
+            <rect x="625" y="325" width="125" height="30" rx="6" fill="#fdeaea" stroke="#e03131" stroke-width="1.5"/>
+            <text x="687" y="345" text-anchor="middle" fill="#b91c1c">gitcmd.Git</text>
+            <line x1="230" y1="219" x2="230" y2="248" stroke="#626262" stroke-width="1.5" marker-end="url(#ar)"/>
+            <line x1="600" y1="219" x2="600" y2="248" stroke="#626262" stroke-width="1.5" marker-end="url(#ar)"/>
+            <!-- external -->
+            <rect x="460" y="395" width="155" height="40" rx="8" fill="#ffffff" stroke="#969696" stroke-dasharray="4 3"/>
+            <text x="537" y="420" text-anchor="middle" fill="#626262">gh CLI → GitHub API</text>
+            <rect x="625" y="395" width="125" height="40" rx="8" fill="#ffffff" stroke="#969696" stroke-dasharray="4 3"/>
+            <text x="687" y="420" text-anchor="middle" fill="#626262">git → ローカル repo</text>
+            <line x1="552" y1="355" x2="540" y2="393" stroke="#626262" stroke-width="1.5" marker-end="url(#ar)"/>
+            <line x1="687" y1="355" x2="687" y2="393" stroke="#626262" stroke-width="1.5" marker-end="url(#ar)"/>
+            <text x="20" y="395" fill="#969696" font-size="11">context.AppContext が設定・Runner・Gh を束ね、</text>
+            <text x="20" y="412" fill="#969696" font-size="11">各ユースケース関数の第 1 引数として渡す</text>
+          </g>
+        </svg>
+        <figcaption>図1: レイヤ構成。CLI と UI は同じユースケース層を呼び、コア層は外部コマンドを呼ばない</figcaption>
+      </figure>
+      <h3>レイヤの責務と依存規則</h3>
+      <table class="spec-table">
+        <thead><tr><th>レイヤ</th><th>モジュール</th><th>責務</th><th>依存してよい先</th></tr></thead>
+        <tbody>
+          <tr><td>インターフェース</td><td><code>cli.py</code>, <code>ui/*</code></td><td>入力の受付、結果表示、エラーの整形</td><td>ユースケース、コア（表示用）</td></tr>
+          <tr><td>ユースケース</td><td><code>commands/*</code></td><td>手順の組み立て、能力による分岐、要約表示</td><td>コア、統合（<code>AppContext</code> 経由）</td></tr>
+          <tr><td>コア（純粋）</td><td><code>config</code>, <code>capabilities</code>, <code>conventions</code>, <code>protection</code>, <code>labels</code>, <code>scaffold</code></td><td>検証、計算、ペイロード生成、テンプレート描画</td><td>標準ライブラリ、pyyaml のみ（<span class="badge badge-must">MUST</span> subprocess 禁止）</td></tr>
+          <tr><td>統合</td><td><code>runner</code>, <code>gh</code>, <code>gitcmd</code></td><td>外部コマンド実行、JSON 解析、エラー変換</td><td>標準ライブラリ</td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-info">
+        <div class="callout-title">出力の差し替え</div>
+        表示は <code>gitteam/ui.py</code> の <code>get_console()</code> を通す。Web UI は <code>redirected(Console(file=StringIO))</code> で同じ出力をプレーンテキストとして捕捉し、dry-run 行を日本語の操作説明に変換する。CLI 側のコードは表示先を意識しない。
+      </div>
+    </section>
+
+    <section id="modules">
+      <h2>4. モジュール構成</h2>
+<div class="tree-view">
+<span class="dir">gitteam/</span>
+├── cli.py               <span class="comment">typer アプリ。GitTeamError をトレースバックなしで exit 1 に変換（ErrorHandlingGroup）</span>
+├── context.py           <span class="comment">AppContext: 設定の遅延読込・信頼検証・プラン判定キャッシュ</span>
+├── config.py            <span class="comment">dataclass スキーマ、dict→dataclass 変換（未知キー検出）、validate、探索、信頼リスト</span>
+├── capabilities.py      <span class="comment">resolve(mode, plan, visibility) → Capabilities</span>
+├── conventions.py       <span class="comment">ブランチ名生成・検証、Conventional Commits 検証、semver、PR タイトル</span>
+├── protection.py        <span class="comment">classic_payload / ruleset_payload / choose_engine</span>
+├── labels.py            <span class="comment">plan_changes(existing, desired, prune) → create/update/delete/keep</span>
+├── scaffold.py          <span class="comment">COMPONENTS 定義、string.Template による描画、materialize()</span>
+├── runner.py            <span class="comment">Runner.run(cmd, mutating, input, cwd): dry-run 時は表示のみ</span>
+├── gh.py                <span class="comment">gh api ラッパー（--input - で JSON、--paginate --slurp）、GhApiError 変換</span>
+├── gitcmd.py            <span class="comment">git ラッパー（remote 解析、commits、config、tag、push）</span>
+├── ui.py                <span class="comment">rich 出力（info/ok/warn/fail/table/step）と差し替え可能なコンソール</span>
+├── errors.py            <span class="comment">GitTeamError 階層（Config / UntrustedConfig / Command / GhApi / Capability / Convention）</span>
+├── <span class="dir">commands/</span>
+│   ├── repo.py          <span class="comment">init_repo, apply_settings, sync_labels, apply_protection, apply_access</span>
+│   ├── team.py          <span class="comment">sync, invite, list_teams（personal は collaborators に分岐）</span>
+│   ├── ops.py           <span class="comment">branch_new/check, commit_check, hooks_install, pr_create, release</span>
+│   ├── dev.py           <span class="comment">setup, onboard, show</span>
+│   ├── doctor.py        <span class="comment">環境点検</span>
+│   └── config_cmd.py    <span class="comment">init（テンプレート置換 + 自動信頼）, trust/untrust/show_trusted, validate/show/capabilities</span>
+└── <span class="dir">templates/</span>
+    ├── gitteam.example.yaml      <span class="comment">コメント付き設定テンプレート（$owner, $mode, $teams_example）</span>
+    └── <span class="dir">scaffold/</span>                 <span class="comment">README, CONTRIBUTING, .editorconfig, .gitattributes, .github/**, .githooks/**</span>
+<span class="dir">ui/</span>
+├── streamlit_app.py     <span class="comment">st.navigation（4 グループ 8 ページ）、サイドバー（設定状態・信頼ボタン・上級者向け）</span>
+├── services.py          <span class="comment">run_captured / stage_action / render_action / summarize / describe_command / friendly_error / 設定パス制限</span>
+├── glossary.py          <span class="comment">用語 TERMS、MODE/VISIBILITY/PERMISSION ラベル、CAPABILITY_INFO</span>
+└── <span class="dir">app_pages/</span>           <span class="comment">start, overview, config_page, dev_page, repo_page, team_page, ops_page, glossary_page</span>
+</div>
+    </section>
+
+    <section id="flows">
+      <h2>5. 主要フロー</h2>
+
+      <h3 id="flow-repo-init">5.1 <code>repo init</code></h3>
+      <figure class="diagram-container" tabindex="0">
+        <svg viewBox="0 0 780 420" width="100%" role="img" aria-label="repo init のシーケンス図">
+          <defs><marker id="sa" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2563eb"/></marker></defs>
+          <g font-family="sans-serif" font-size="12">
+            <g font-weight="700" text-anchor="middle" fill="#1d4ed8">
+              <rect x="20" y="10" width="120" height="30" rx="6" fill="#eff6ff" stroke="#2563eb"/><text x="80" y="30">commands.repo</text>
+              <rect x="200" y="10" width="120" height="30" rx="6" fill="#eff6ff" stroke="#2563eb"/><text x="260" y="30">capabilities</text>
+              <rect x="380" y="10" width="120" height="30" rx="6" fill="#eff6ff" stroke="#2563eb"/><text x="440" y="30">scaffold / Git</text>
+              <rect x="560" y="10" width="120" height="30" rx="6" fill="#eff6ff" stroke="#2563eb"/><text x="620" y="30">Gh → GitHub</text>
+            </g>
+            <g stroke="#c5d0cd" stroke-dasharray="4 4"><line x1="80" y1="40" x2="80" y2="410"/><line x1="260" y1="40" x2="260" y2="410"/><line x1="440" y1="40" x2="440" y2="410"/><line x1="620" y1="40" x2="620" y2="410"/></g>
+            <g stroke="#2563eb" stroke-width="1.5" marker-end="url(#sa)" fill="none">
+              <line x1="80" y1="70" x2="612" y2="70"/><line x1="80" y1="110" x2="612" y2="110"/><line x1="80" y1="150" x2="432" y2="150"/>
+              <line x1="80" y1="190" x2="612" y2="190"/><line x1="80" y1="230" x2="612" y2="230"/><line x1="80" y1="270" x2="252" y2="270"/>
+              <line x1="80" y1="310" x2="612" y2="310"/><line x1="80" y1="350" x2="612" y2="350"/>
+            </g>
+            <g fill="#111">
+              <text x="90" y="64">1. GET repos/{o}/{r}（存在確認）</text>
+              <text x="90" y="104">2. 無ければ gh repo create</text>
+              <text x="90" y="144">3. clone → materialize → add/chmod/commit/push</text>
+              <text x="90" y="184">4. PATCH repos（マージ方式・機能）, PUT topics</text>
+              <text x="90" y="224">5. GET labels → plan_changes → POST/PATCH/DELETE</text>
+              <text x="90" y="264">6. resolve(mode, plan, visibility) → 保護可否</text>
+              <text x="90" y="304">7. rulesets GET → POST/PUT（または classic PUT）</text>
+              <text x="90" y="344">8. teams/{slug}/repos PUT または collaborators PUT</text>
+            </g>
+            <rect x="20" y="375" width="740" height="28" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+            <text x="390" y="394" text-anchor="middle" fill="#15803d" font-weight="700">9. 各ステップの結果を要約表で表示（dry-run 時は 2〜8 が表示のみ）</text>
+          </g>
+        </svg>
+        <figcaption>図2: repo init の処理順序。各ステップは <code>--no-*</code> オプションで個別に省略できる</figcaption>
+      </figure>
+      <p>dry-run 時、対象リポジトリが未作成で一覧系 API が 404 を返す場合は「空」とみなして計画を続行する（<code>_list_or_empty</code>）。これにより作成前でも実行計画を完全に表示できる。</p>
+
+      <h3 id="flow-ui">5.2 UI の確認→実行</h3>
+      <figure class="diagram-container" tabindex="0">
+        <svg viewBox="0 0 780 200" width="100%" role="img" aria-label="UI の確認から実行までの流れ">
+          <defs><marker id="fa" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7048c6"/></marker></defs>
+          <g font-family="sans-serif" font-size="12" text-anchor="middle">
+            <rect x="10" y="60" width="130" height="70" rx="10" fill="#f0ecf9" stroke="#7048c6" stroke-width="2"/>
+            <text x="75" y="88" font-weight="700" fill="#7048c6">フォーム送信</text><text x="75" y="108" fill="#626262">「内容を確認する」</text>
+            <line x1="140" y1="95" x2="165" y2="95" stroke="#7048c6" stroke-width="2" marker-end="url(#fa)"/>
+            <rect x="170" y="60" width="150" height="70" rx="10" fill="#f0ecf9" stroke="#7048c6" stroke-width="2"/>
+            <text x="245" y="82" font-weight="700" fill="#7048c6">stage_action</text><text x="245" y="100" fill="#626262">ctx(dry_run=True) で実行</text><text x="245" y="118" fill="#626262">fn, args, plan を保存</text>
+            <line x1="320" y1="95" x2="345" y2="95" stroke="#7048c6" stroke-width="2" marker-end="url(#fa)"/>
+            <rect x="350" y="60" width="150" height="70" rx="10" fill="#f0ecf9" stroke="#7048c6" stroke-width="2"/>
+            <text x="425" y="82" font-weight="700" fill="#7048c6">render_action</text><text x="425" y="100" fill="#626262">summarize → 操作一覧</text><text x="425" y="118" fill="#626262">describe_command で日本語化</text>
+            <line x1="500" y1="95" x2="525" y2="95" stroke="#7048c6" stroke-width="2" marker-end="url(#fa)"/>
+            <rect x="530" y="60" width="110" height="70" rx="10" fill="#fef6e8" stroke="#e8910c" stroke-width="2"/>
+            <text x="585" y="88" font-weight="700" fill="#9a5b00">実行ボタン</text><text x="585" y="108" fill="#626262">利用者が押す</text>
+            <line x1="640" y1="95" x2="665" y2="95" stroke="#7048c6" stroke-width="2" marker-end="url(#fa)"/>
+            <rect x="670" y="60" width="100" height="70" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+            <text x="720" y="88" font-weight="700" fill="#15803d">本実行</text><text x="720" y="108" fill="#626262">同一 fn/args</text>
+            <text x="390" y="165" fill="#969696" font-size="11">状態は session_state["action::&lt;key&gt;"] に保持（ウィジェットキーと衝突しない名前空間）</text>
+          </g>
+        </svg>
+        <figcaption>図3: 確認時と実行時で同じ関数・同じ引数を用いるため、確認後に入力を変えても実行内容は変わらない</figcaption>
+      </figure>
+      <p>
+        <code>describe_command</code> は dry-run 行（例 <code>gh api repos/o/r/labels -X POST</code>）をエンドポイントとメソッドで分類し、「o/r にラベルを作成」のような日本語に変換する。
+        Runner は dry-run 行を <code>soft_wrap=True</code> で折り返さずに出力するため、1 行 = 1 コマンドとして解析できる。
+      </p>
+
+      <h3 id="flow-config">5.3 設定の探索と信頼</h3>
+      <figure class="diagram-container" tabindex="0">
+        <svg viewBox="0 0 780 250" width="100%" role="img" aria-label="設定探索と信頼判定のフローチャート">
+          <defs><marker id="ca" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0284c7"/></marker></defs>
+          <g font-family="sans-serif" font-size="12" text-anchor="middle">
+            <rect x="10" y="20" width="130" height="50" rx="8" fill="#e8f4fd" stroke="#0284c7" stroke-width="2"/><text x="75" y="42" font-weight="700" fill="#0369a1">--config</text><text x="75" y="60" fill="#626262">source=explicit</text>
+            <rect x="170" y="20" width="130" height="50" rx="8" fill="#e8f4fd" stroke="#0284c7" stroke-width="2"/><text x="235" y="42" font-weight="700" fill="#0369a1">GITTEAM_CONFIG</text><text x="235" y="60" fill="#626262">source=env</text>
+            <rect x="330" y="20" width="150" height="50" rx="8" fill="#fef6e8" stroke="#e8910c" stroke-width="2"/><text x="405" y="42" font-weight="700" fill="#9a5b00">cwd と親ディレクトリ</text><text x="405" y="60" fill="#626262">source=cwd</text>
+            <rect x="510" y="20" width="260" height="50" rx="8" fill="#e8f4fd" stroke="#0284c7" stroke-width="2"/><text x="640" y="42" font-weight="700" fill="#0369a1">ユーザー設定ディレクトリ</text><text x="640" y="60" fill="#626262">~/.config/gitteam 等  source=user</text>
+            <text x="390" y="95" fill="#969696" font-size="11">← 左から順に最初に見つかったものを採用 →</text>
+            <line x1="405" y1="70" x2="405" y2="120" stroke="#0284c7" stroke-width="2" marker-end="url(#ca)"/>
+            <path d="M405 125 L470 160 L405 195 L340 160 Z" fill="#fef6e8" stroke="#e8910c" stroke-width="2"/>
+            <text x="405" y="156" fill="#9a5b00" font-weight="700" font-size="11">is_trusted?</text><text x="405" y="172" fill="#626262" font-size="10">trusted-configs.txt</text>
+            <line x1="470" y1="160" x2="560" y2="160" stroke="#0284c7" stroke-width="2" marker-end="url(#ca)"/>
+            <rect x="565" y="140" width="110" height="40" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/><text x="620" y="165" fill="#15803d" font-weight="700">load()</text>
+            <line x1="340" y1="160" x2="250" y2="160" stroke="#0284c7" stroke-width="2" marker-end="url(#ca)"/>
+            <rect x="60" y="140" width="185" height="40" rx="8" fill="#fdeaea" stroke="#e03131" stroke-width="2"/><text x="152" y="165" fill="#b91c1c" font-weight="700">UntrustedConfigError</text>
+            <text x="152" y="205" fill="#626262" font-size="11">→ gitteam config trust / UI の「信頼する」</text>
+            <text x="640" y="205" fill="#626262" font-size="11">explicit / env / user は信頼済み扱い</text>
+            <line x1="75" y1="70" x2="75" y2="110" stroke="#c5d0cd" stroke-width="1.5"/><line x1="75" y1="110" x2="620" y2="110" stroke="#c5d0cd" stroke-width="1.5"/><line x1="620" y1="110" x2="620" y2="138" stroke="#c5d0cd" stroke-width="1.5" marker-end="url(#ca)"/>
+          </g>
+        </svg>
+        <figcaption>図4: <code>discover_config</code> と <code>require_trusted</code>。作業ディレクトリ由来の設定だけが信頼リストを参照する</figcaption>
+      </figure>
+      <p><code>config_or_default()</code>（ops / dev が使用）は設定が無ければ既定値にフォールバックするが、<code>UntrustedConfigError</code> は再送出する。未信頼の設定を黙って無視しないための設計である。</p>
+
+      <h3 id="flow-capabilities">5.4 能力判定</h3>
+      <table class="spec-table">
+        <thead><tr><th>入力</th><th>取得方法</th><th>出力への影響</th></tr></thead>
+        <tbody>
+          <tr><td><code>mode</code></td><td>設定</td><td><code>teams</code>（org のみ）、<code>org_rulesets</code> / <code>push_rulesets</code> / <code>required_workflows</code> / <code>internal_repos</code>（enterprise のみ）</td></tr>
+          <tr><td><code>plan</code></td><td>設定が <code>auto</code> なら <code>gh api orgs/{owner}</code> または <code>gh api user</code> の <code>plan.name</code>。読めなければ free と仮定し警告。<code>AppContext</code> がキャッシュ</td><td>有料（pro / team / enterprise）なら private でも保護可</td></tr>
+          <tr><td><code>visibility</code></td><td>リポジトリの実値（存在時）または設定の既定</td><td>public なら常に保護可</td></tr>
+        </tbody>
+      </table>
+      <p><code>apply_protection</code> は <code>branch_protection</code> が偽なら理由（notes）を警告として表示し「skipped」を返す。失敗ではなく設計上のスキップとして扱う。</p>
+    </section>
+
+    <section id="data">
+      <h2>6. データモデル</h2>
+      <figure class="diagram-container" tabindex="0">
+        <svg viewBox="0 0 800 300" width="100%" role="img" aria-label="Config データモデル">
+          <g font-family="sans-serif" font-size="12">
+            <rect x="290" y="15" width="200" height="60" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+            <text x="390" y="38" text-anchor="middle" font-weight="700" fill="#1d4ed8">Config</text>
+            <text x="390" y="58" text-anchor="middle" fill="#626262">owner, mode, plan, source_path</text>
+            <g stroke="#c5d0cd" stroke-width="1.5">
+              <line x1="390" y1="75" x2="390" y2="100"/><line x1="70" y1="100" x2="710" y2="100"/>
+              <line x1="70" y1="100" x2="70" y2="120"/><line x1="230" y1="100" x2="230" y2="120"/><line x1="390" y1="100" x2="390" y2="120"/><line x1="550" y1="100" x2="550" y2="120"/><line x1="710" y1="100" x2="710" y2="120"/>
+            </g>
+            <g fill="#f5f8f7" stroke="#c5d0cd" stroke-width="1.5">
+              <rect x="10" y="120" width="120" height="70" rx="8"/><rect x="170" y="120" width="120" height="70" rx="8"/><rect x="330" y="120" width="120" height="70" rx="8"/><rect x="490" y="120" width="120" height="70" rx="8"/><rect x="650" y="120" width="120" height="70" rx="8"/>
+            </g>
+            <g text-anchor="middle">
+              <text x="70" y="142" font-weight="700">RepoDefaults</text><text x="70" y="160" fill="#626262" font-size="11">visibility, マージ設定</text><text x="70" y="176" fill="#626262" font-size="11">gitignore, license</text>
+              <text x="230" y="142" font-weight="700">ProtectionConfig</text><text x="230" y="160" fill="#626262" font-size="11">branches, engine</text><text x="230" y="176" fill="#626262" font-size="11">approvals, checks…</text>
+              <text x="390" y="142" font-weight="700">ConventionsConfig</text><text x="390" y="160" fill="#626262" font-size="11">branch_pattern, types</text><text x="390" y="176" fill="#626262" font-size="11">subject_max, tag_prefix</text>
+              <text x="550" y="142" font-weight="700">DevSetupConfig</text><text x="550" y="160" fill="#626262" font-size="11">git_config, aliases</text><text x="550" y="176" fill="#626262" font-size="11">line_endings, repos</text>
+              <text x="710" y="142" font-weight="700">ScaffoldConfig</text><text x="710" y="160" fill="#626262" font-size="11">include[]</text><text x="710" y="176" fill="#626262" font-size="11">codeowners{}</text>
+            </g>
+            <g stroke="#c5d0cd" stroke-width="1.5" fill="none"><path d="M490 45 H790 V215 H150"/><line x1="150" y1="215" x2="150" y2="230"/><line x1="390" y1="215" x2="390" y2="230"/><line x1="630" y1="215" x2="630" y2="230"/></g>
+            <text x="700" y="208" fill="#969696" font-size="10" text-anchor="middle">Config が直接保持する配列</text>
+            <g fill="#fef6e8" stroke="#e8910c" stroke-width="1.5">
+              <rect x="80" y="230" width="140" height="50" rx="8"/><rect x="320" y="230" width="140" height="50" rx="8"/><rect x="560" y="230" width="140" height="50" rx="8"/>
+            </g>
+            <g text-anchor="middle">
+              <text x="150" y="250" font-weight="700" fill="#9a5b00">Label[]</text><text x="150" y="268" fill="#626262" font-size="11">name, color, description</text>
+              <text x="390" y="250" font-weight="700" fill="#9a5b00">TeamConfig[]</text><text x="390" y="268" fill="#626262" font-size="11">name, members, permission, repos</text>
+              <text x="630" y="250" font-weight="700" fill="#9a5b00">Collaborator[]</text><text x="630" y="268" fill="#626262" font-size="11">user, permission, repos</text>
+            </g>
+          </g>
+        </svg>
+        <figcaption>図5: <code>Config</code> の dataclass 階層（<code>gitteam/config.py</code>）</figcaption>
+      </figure>
+      <h3>読み込みと検証</h3>
+      <table class="spec-table">
+        <thead><tr><th>段階</th><th>関数</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>1. 構造変換</td><td><code>_build</code> / <code>_coerce</code></td><td>型ヒントに基づき dict → dataclass。未知キー、型不一致、Enum 外の値を <code>ConfigError</code> にする</td></tr>
+          <tr><td>2. 形態既定値</td><td><code>_apply_mode_defaults</code></td><td>CODEOWNERS 既定（org: <code>@{owner}/core</code>、personal: <code>@{owner}</code>）</td></tr>
+          <tr><td>3. 意味検証</td><td><code>validate</code></td><td>可視性と形態の整合、承認数の範囲、ラベル色、権限値、personal で teams 空、正規表現のコンパイル</td></tr>
+          <tr><td>4. 安全性検証</td><td><code>_safety_problems</code></td><td>フック / ワークフローに埋め込む値の文字集合、<code>git_config</code> 許可キー、<code>!</code> エイリアス拒否（§10）</td></tr>
+        </tbody>
+      </table>
+      <h3>その他の値オブジェクト</h3>
+      <table class="spec-table">
+        <thead><tr><th>型</th><th>場所</th><th>役割</th></tr></thead>
+        <tbody>
+          <tr><td><code>Capabilities</code>（frozen）</td><td><code>capabilities.py</code></td><td>機能可否と注記。<code>as_rows()</code> で表示用の行を返す</td></tr>
+          <tr><td><code>DiscoveredConfig</code></td><td><code>config.py</code></td><td>設定パスと出所（explicit / env / cwd / user）。<code>needs_trust</code></td></tr>
+          <tr><td><code>LabelChange</code></td><td><code>labels.py</code></td><td>create / update / delete / keep の計画</td></tr>
+          <tr><td><code>ScaffoldResult</code></td><td><code>scaffold.py</code></td><td>written / skipped / executable（chmod 対象）</td></tr>
+          <tr><td><code>Commit</code></td><td><code>gitcmd.py</code></td><td>sha, subject, body</td></tr>
+          <tr><td><code>RunResult</code> / <code>ActionState</code> / <code>Summary</code></td><td><code>ui/services.py</code></td><td>捕捉出力、確認→実行の状態、日本語要約</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="external">
+      <h2>7. 外部インターフェース</h2>
+      <h3>GitHub REST API（<code>gh api</code> 経由）</h3>
+      <table class="spec-table">
+        <thead><tr><th>用途</th><th>メソッド / エンドポイント</th><th>備考</th></tr></thead>
+        <tbody>
+          <tr><td>アカウント / プラン</td><td><code>GET user</code>, <code>GET users/{login}</code>, <code>GET orgs/{org}</code></td><td><code>plan.name</code> をプランに写像</td></tr>
+          <tr><td>リポジトリ</td><td><code>GET/PATCH repos/{o}/{r}</code>, <code>PUT .../topics</code>, <code>GET .../branches/{b}</code></td><td>作成は <code>gh repo create</code></td></tr>
+          <tr><td>ラベル</td><td><code>GET/POST .../labels</code>, <code>PATCH/DELETE .../labels/{name}</code></td><td>名前は URL エンコード、差分適用</td></tr>
+          <tr><td>ブランチ保護</td><td><code>GET/POST .../rulesets</code>, <code>PUT .../rulesets/{id}</code>, <code>PUT .../branches/{b}/protection</code>, <code>POST/DELETE .../required_signatures</code></td><td>Rulesets は名前 <code>gitteam:&lt;branch&gt;</code> で冪等に更新</td></tr>
+          <tr><td>チーム</td><td><code>GET/POST orgs/{org}/teams</code>, <code>GET .../members</code>, <code>PUT .../memberships/{user}</code>, <code>PUT .../repos/{o}/{r}</code>, <code>PUT orgs/{org}/memberships/{user}</code></td><td>admin:org スコープ必須</td></tr>
+          <tr><td>コラボレーター</td><td><code>PUT repos/{o}/{r}/collaborators/{user}</code></td><td>personal モード</td></tr>
+          <tr><td>テンプレート</td><td><code>GET gitignore/templates/{name}</code>, <code>GET licenses/{key}</code></td><td>雛形生成に利用</td></tr>
+        </tbody>
+      </table>
+      <p>共通ヘッダ: <code>Accept: application/vnd.github+json</code>, <code>X-GitHub-Api-Version: 2022-11-28</code>。一覧は <code>--paginate --slurp</code> でページを結合。エラーは stderr の <code>(HTTP nnn)</code> と JSON の <code>message</code> / <code>errors</code> から <code>GhApiError(status, message)</code> を生成する。</p>
+      <h3>gh / git サブコマンド</h3>
+      <table class="spec-table">
+        <thead><tr><th>コマンド</th><th>使用箇所</th></tr></thead>
+        <tbody>
+          <tr><td><code>gh repo create / clone</code>, <code>gh pr create</code>, <code>gh release create --generate-notes</code>, <code>gh auth status / setup-git</code></td><td>repo, ops, dev</td></tr>
+          <tr><td><code>git clone / fetch / switch -c / add -A / update-index --chmod=+x / commit / push / tag -a / config / log / rev-parse / symbolic-ref</code></td><td>gitcmd 経由。すべてリスト引数、<code>shell=True</code> 不使用</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="artifacts">
+      <h2>8. 生成物の設計</h2>
+      <h3>雛形（scaffold）</h3>
+      <table class="spec-table">
+        <thead><tr><th>コンポーネント</th><th>ファイル</th><th>生成方法</th></tr></thead>
+        <tbody>
+          <tr><td>readme, contributing, editorconfig, gitattributes, pr_template, issue_templates, workflows, githooks</td><td><code>templates/scaffold/**</code></td><td><code>string.Template.safe_substitute</code>。変数: owner, repo, default_branch, branch_pattern, commit_types(_alternation), commit_subject_max, tag_prefix, protected_branches, year</td></tr>
+          <tr><td>gitignore</td><td><code>.gitignore</code></td><td>github/gitignore テンプレートを API から取得して結合し、共通項目を追加</td></tr>
+          <tr><td>license</td><td><code>LICENSE</code></td><td><code>gh api licenses/{key}</code> の本文に年とオーナーを埋める</td></tr>
+          <tr><td>codeowners</td><td><code>.github/CODEOWNERS</code></td><td><code>scaffold.codeowners</code> から生成（<code>{owner}</code> 展開）</td></tr>
+        </tbody>
+      </table>
+      <p>既存ファイルは <code>force=False</code> の限り保持する。テンプレート内でシェル / GitHub Actions の <code>$</code> は <code>$$</code> と書き、<code>${{ }}</code> は Template の無効プレースホルダとしてそのまま残る。</p>
+      <h3>git hooks の設計</h3>
+      <ul>
+        <li><code>commit-msg</code>: <code>gitteam</code> が PATH にあれば <code>gitteam ops commit check --message-file</code> に委譲、無ければ POSIX sh の同等実装で検証。</li>
+        <li><code>pre-push</code>: stdin の各 ref について、ブランチ名（保護ブランチは除外）と push 範囲のコミット件名を検証。新規ブランチは <code>--not --remotes</code> で範囲を決める。</li>
+        <li>フックに埋め込む値は §10 の文字集合検証を通ったものだけであり、単一引用符で囲んだ変数代入として展開される。</li>
+      </ul>
+      <h3>GitHub Actions <code>conventions.yml</code></h3>
+      <p>PR の <code>opened / edited / synchronize / reopened</code> で、ブランチ名・PR タイトル・コミット件名を検証する。PR タイトルやブランチ名は <code>env:</code> 経由で渡し、<code>run:</code> 内に直接展開しない（式インジェクション対策）。</p>
+    </section>
+
+    <section id="ui-design">
+      <h2>9. Web UI の設計</h2>
+      <table class="spec-table">
+        <thead><tr><th>関心事</th><th>設計</th></tr></thead>
+        <tbody>
+          <tr><td>ナビゲーション</td><td><code>st.navigation</code> の 4 グループ（""、設定、運用、ヘルプ）8 ページ。エントリでタイトルを描画し、各ページは直接スクリプトとして記述</td></tr>
+          <tr><td>状態</td><td><code>session_state</code>: <code>cfg_path</code>, <code>verbose</code>, <code>pending_cfg_path</code>（ウィジェット描画前に反映）, <code>action::&lt;key&gt;</code>（ActionState / RunResult）</td></tr>
+          <tr><td>コマンド呼び出し</td><td><code>run_captured(fn, ctx, ...)</code> が rich 出力を StringIO に捕捉。<code>contextlib.chdir</code> でリポジトリ操作の cwd を切り替え</td></tr>
+          <tr><td>変更操作</td><td><code>stage_action</code>（dry-run）→ <code>render_action</code>（操作一覧・警告・詳細ログ・実行ボタン）</td></tr>
+          <tr><td>読み取り操作</td><td><code>run_direct</code> / <code>render_direct</code>（出力そのものを表示）</td></tr>
+          <tr><td>設定編集</td><td>かんたん設定は <code>save_simple_settings</code>（ruamel ラウンドトリップ、保存前に <code>from_dict</code> で検証）。YAML タブは直接編集</td></tr>
+          <tr><td>用語</td><td><code>glossary.py</code> の TERMS を <code>help=</code> ツールチップと用語集ページで共用</td></tr>
+          <tr><td>エラー</td><td><code>friendly_error</code> が HTTP ステータス等を日本語ヒントに写像し、原文を「詳細」として併記</td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-warning">
+        <div class="callout-title">既知の制約</div>
+        Streamlit のファイル監視が <code>ui/services.py</code> の変更を拾わない場合がある（開発時はサーバー再起動が必要）。また <code>contextlib.chdir</code> はプロセス全体に影響するため、単一利用者のローカル利用を前提とする。
+      </div>
+    </section>
+
+    <section id="security">
+      <h2>10. セキュリティ設計</h2>
+      <h3>脅威モデル</h3>
+      <table class="spec-table">
+        <thead><tr><th>入力</th><th>信頼</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td>CLI 引数・環境変数</td><td>信頼</td><td>操作者本人が指定</td></tr>
+          <tr><td>ユーザー設定ディレクトリの <code>gitteam.yaml</code></td><td>信頼</td><td>ユーザー所有の場所</td></tr>
+          <tr><td>作業ディレクトリ配下の <code>gitteam.yaml</code></td><td><strong>要信頼</strong></td><td>クローンしたリポジトリに同梱され得る</td></tr>
+          <tr><td>Web UI のフォーム入力</td><td>ローカル操作者</td><td>localhost のみで待ち受け、認証なし</td></tr>
+          <tr><td>GitHub API 応答</td><td>信頼</td><td>GitHub を信頼</td></tr>
+        </tbody>
+      </table>
+      <h3>対策と実装箇所</h3>
+      <table class="spec-table">
+        <thead><tr><th>ID</th><th>対策</th><th>実装</th><th>検証</th></tr></thead>
+        <tbody>
+          <tr><td>S-1</td><td>UI を localhost に限定</td><td><code>.streamlit/config.toml</code> <code>[server] address</code>、起動スクリプトの <code>--server.address localhost</code></td><td>手動（LAN からの接続拒否を確認）</td></tr>
+          <tr><td>S-2</td><td>UI の設定パス制限</td><td><code>services.check_config_path</code>: cwd 配下またはユーザー設定ディレクトリ配下の <code>.yaml/.yml</code></td><td><code>test_ui.py::test_check_config_path_*</code></td></tr>
+          <tr><td>S-3</td><td>設定の形をした YAML のみ表示</td><td><code>services.readable_config_text</code>（owner / mode を含むマッピング）</td><td><code>test_readable_config_text_refuses_non_gitteam_yaml</code></td></tr>
+          <tr><td>S-4</td><td>作業ディレクトリ設定の信頼</td><td><code>config.discover_config / is_trusted / require_trusted</code>、<code>config trust</code>、UI 信頼ボタン、<code>config init</code> の自動信頼</td><td><code>test_security.py</code>（探索・CLI・UI）</td></tr>
+          <tr><td>S-5</td><td><code>git_config</code> 許可キー、<code>!</code> エイリアス拒否</td><td><code>config.ALLOWED_GIT_CONFIG_KEYS</code>、<code>_safety_problems</code></td><td><code>test_dangerous_values_are_rejected</code></td></tr>
+          <tr><td>S-6</td><td>フック / ワークフロー埋め込み値の文字集合</td><td><code>_SAFE_REGEX_RE</code>, <code>_SAFE_NAME_RE</code>, <code>_SAFE_GLOB_RE</code>, <code>_SAFE_REPO_RE</code>, <code>_SAFE_LOGIN_RE</code></td><td>同上</td></tr>
+          <tr><td>S-7</td><td>リスト引数の subprocess、<code>safe_load</code></td><td><code>runner.py</code>, <code>config.load</code>, <code>services</code></td><td>コードレビュー</td></tr>
+          <tr><td>S-8</td><td>認証情報を保持しない</td><td>gh に委譲。dry-run 出力・ログにトークンを含めない</td><td>コードレビュー</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="testing">
+      <h2>11. テスト設計</h2>
+      <div class="pyramid">
+        <div class="pyramid-level">
+          <div class="pyramid-bar" style="width:45%;background:#7048c6;">UI（AppTest） <span class="count">43</span></div>
+          <div class="pyramid-detail">全ページの描画、ウィザード、フォーム送信、設定パス制限、信頼ボタン、要約関数</div>
+        </div>
+        <div class="pyramid-level">
+          <div class="pyramid-bar" style="width:55%;background:#0284c7;">CLI / セキュリティ <span class="count">31</span></div>
+          <div class="pyramid-detail">typer CliRunner による実 git リポジトリ上のコマンド、hooks の実動作、信頼フロー</div>
+        </div>
+        <div class="pyramid-level">
+          <div class="pyramid-bar" style="width:65%;background:#e8910c;">統合（Runner / Gh） <span class="count">10</span></div>
+          <div class="pyramid-detail">dry-run の抑止、失敗の例外化、gh api のエラー解析・ページ結合（FakeRunner）</div>
+        </div>
+        <div class="pyramid-level">
+          <div class="pyramid-bar" style="width:100%;background:#16a34a;">純粋コア <span class="count">76</span></div>
+          <div class="pyramid-detail">設定の変換と検証、能力マトリクス、規約、保護ペイロード、ラベル差分、雛形生成</div>
+        </div>
+      </div>
+      <table class="spec-table">
+        <thead><tr><th>方針</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>GitHub への変更禁止</td><td>テストは GitHub を変更しない。ネットワークを使うのは読み取り（<code>gh api user</code> 等）のみ</td></tr>
+          <tr><td>隔離</td><td><code>conftest.py</code> の autouse フィクスチャが <code>GITTEAM_CONFIG_HOME</code> を一時ディレクトリに向け、信頼リストがユーザー環境を汚さない</td></tr>
+          <tr><td>実 git</td><td>CLI テストは一時リポジトリを <code>git init</code> して hooks の拒否 / 許可まで確認</td></tr>
+          <tr><td>UI</td><td><code>st.testing.v1.AppTest</code> でブラウザなしに実行。ウィジェットは <code>key</code> で参照</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="extension">
+      <h2>12. 拡張の手引き</h2>
+      <h3>新しいコマンドを追加する</h3>
+      <ol>
+        <li><code>commands/&lt;area&gt;.py</code> に <code>fn(ctx: AppContext, ...)</code> を実装する。外部呼び出しは <code>ctx.gh</code> / <code>Git(ctx.runner)</code> のみ。</li>
+        <li>変更系の呼び出しは必ず <code>mutating=True</code>（既定）で <code>Runner</code> を通す。これで <code>--dry-run</code> と UI の確認表示が自動的に機能する。</li>
+        <li><code>cli.py</code> に typer コマンドを登録する。</li>
+        <li>UI に載せる場合は <code>stage_action("key", fn, ...)</code> と <code>render_action("key")</code> を置く。新しい gh エンドポイントは <code>services._describe_api</code> に日本語説明を追加する。</li>
+        <li>純粋ロジックは <code>tests/</code> に単体テスト、UI は <code>test_ui.py</code> に描画テストを追加する。</li>
+      </ol>
+      <h3>設定項目を追加する</h3>
+      <ol>
+        <li><code>config.py</code> の該当 dataclass にフィールドと既定値を追加（<code>_build</code> が自動で受け付ける）。</li>
+        <li>生成フックやワークフローに埋め込む値なら <code>_safety_problems</code> に文字集合検証を追加する。</li>
+        <li><code>templates/gitteam.example.yaml</code> にコメント付きで追記し、必要なら UI のかんたん設定と <code>save_simple_settings</code> に反映する。</li>
+      </ol>
+      <h3>能力を追加する</h3>
+      <p><code>Capabilities</code> にフィールドを追加し <code>resolve</code> で算出、<code>as_rows</code> と <code>glossary.CAPABILITY_INFO</code> に説明を追加する。<code>test_capability_info_covers_every_row</code> が両者の整合を検証する。</p>
+    </section>
+
+    <section id="risks">
+      <h2>13. リスクと未決事項</h2>
+      <div class="risk-card risk-card--medium">
+        <div class="risk-header"><span class="badge badge-risk-medium">Medium</span><span class="risk-title">Organization のプランが読めない場合に free と仮定する</span></div>
+        <div class="risk-body">保護が「スキップ」されて意図しない状態になり得る。対策: <code>plan:</code> の明示指定を README と doctor で案内済み。</div>
+      </div>
+      <div class="risk-card risk-card--medium">
+        <div class="risk-header"><span class="badge badge-risk-medium">Medium</span><span class="risk-title">classic 保護は既存ブランチにしか適用できない</span></div>
+        <div class="risk-body">新規リポジトリでは既定ブランチのプッシュ後にのみ有効。対策: 既定を Rulesets にし、classic 選択時は警告してスキップ。</div>
+      </div>
+      <div class="risk-card risk-card--low">
+        <div class="risk-header"><span class="badge badge-risk-low">Low</span><span class="risk-title">GitHub API の仕様変更（Rulesets パラメータ等）</span></div>
+        <div class="risk-body">ペイロードは <code>protection.py</code> に集約されており、変更点は 1 か所で吸収できる。</div>
+      </div>
+      <h3>未決事項</h3>
+      <ul class="question-list">
+        <li>CLI メッセージの日本語化（現状は UI の要約のみ日本語）</li>
+        <li>作業ディレクトリの設定を信頼する際に、内容の差分やリスク項目を表示するか</li>
+        <li>Enterprise 向けの組織レベル Rulesets を適用するコマンドの追加</li>
+        <li>Streamlit のファイル監視が効かないケースの原因究明（開発体験）</li>
+      </ul>
+    </section>
+
+    <section id="appendix">
+      <h2>付録</h2>
+      <h3>A. 仕様書との対応</h3>
+      <table class="spec-table">
+        <thead><tr><th>本書の章</th><th>spec.md の節</th><th>扱い</th></tr></thead>
+        <tbody>
+          <tr><td>1. 概要</td><td>§1 目的と背景</td><td><span class="badge badge-confirmed">要約</span></td></tr>
+          <tr><td>2. 設計方針</td><td>§1.1 設計目標（根拠はソースから）</td><td><span class="badge badge-inferred">推定を含む</span></td></tr>
+          <tr><td>3〜4. アーキテクチャ / モジュール</td><td>§3 システム構成</td><td><span class="badge badge-confirmed">保持 + 図示</span></td></tr>
+          <tr><td>5. 主要フロー</td><td>§4.1 探索順序、§5 能力、§6.2 repo init、§6.4 UI</td><td><span class="badge badge-confirmed">保持 + 図示</span></td></tr>
+          <tr><td>6. データモデル</td><td>§4 設定ファイル</td><td><span class="badge badge-confirmed">保持</span></td></tr>
+          <tr><td>7. 外部インターフェース</td><td>ソース <code>gh.py</code>, <code>gitcmd.py</code></td><td><span class="badge badge-confirmed">保持</span></td></tr>
+          <tr><td>8. 生成物</td><td>§6.2 雛形コンポーネント、<code>templates/</code></td><td><span class="badge badge-confirmed">保持</span></td></tr>
+          <tr><td>9. Web UI</td><td>§6.4、<code>ui/services.py</code></td><td><span class="badge badge-confirmed">保持</span></td></tr>
+          <tr><td>10. セキュリティ</td><td>§7 セキュリティ要件</td><td><span class="badge badge-confirmed">保持 + 実装対応</span></td></tr>
+          <tr><td>11. テスト</td><td>§8 非機能要件（テスト）、<code>tests/</code></td><td><span class="badge badge-confirmed">保持</span></td></tr>
+          <tr><td>12〜13. 拡張 / リスク</td><td>§10 制約・前提・未決事項</td><td><span class="badge badge-inferred">推定を含む</span></td></tr>
+        </tbody>
+      </table>
+      <h3>B. 用語</h3>
+      <div class="glossary">
+        <div class="glossary-item"><div class="glossary-term">dry-run</div><div class="glossary-def">変更系コマンドを実行せず表示のみ行うモード。<code>Runner.dry_run</code>。</div></div>
+        <div class="glossary-item"><div class="glossary-term">mutating</div><div class="glossary-def"><code>Runner.run</code> の引数。真なら dry-run で抑止される。読み取りは偽で呼ぶ。</div></div>
+        <div class="glossary-item"><div class="glossary-term">Capabilities</div><div class="glossary-def">mode × plan × visibility から算出した機能可否。</div></div>
+        <div class="glossary-item"><div class="glossary-term">信頼（trust）</div><div class="glossary-def">作業ディレクトリ由来の設定を使用可と登録した状態。<code>trusted-configs.txt</code>。</div></div>
+        <div class="glossary-item"><div class="glossary-term">ActionState</div><div class="glossary-def">UI の確認→実行で保持する関数・引数・計画・結果。</div></div>
+        <div class="glossary-item"><div class="glossary-term">Rulesets</div><div class="glossary-def">GitHub のブランチ保護の新 API。パターン指定と冪等更新が可能。</div></div>
+      </div>
+    </section>
+
+    <footer style="border-top:1px solid var(--color-border); padding-top:1rem; font-size:0.8125rem; color:var(--color-text-muted);">
+      gitteam 0.1.0 設計書 - 2026-09-07 作成。外部リソースを読み込まない単一 HTML（図はインライン SVG）。数値（コード行数・テスト数・コマンド数）は作成時点のソースから集計。
+    </footer>
+  </main>
+</div>
+
+
+<script>
+  // Highlight the current section in the table of contents while scrolling.
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+    var targets = links.map(function (a) { return document.querySelector(a.getAttribute('href')); }).filter(Boolean);
+    function update() {
+      var y = window.scrollY + 100, current = targets[0];
+      targets.forEach(function (t) { if (t.offsetTop <= y) current = t; });
+      links.forEach(function (a) { a.classList.toggle('active', current && a.getAttribute('href') === '#' + current.id); });
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+  })();
+</script>
+
+</body>
+</html>

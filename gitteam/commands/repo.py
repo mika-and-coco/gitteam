@@ -7,6 +7,7 @@ from typing import Any
 from .. import labels as labelmod
 from .. import protection as protmod
 from .. import scaffold as scaffoldmod
+from .. import config as cfgmod
 from ..config import Mode
 from ..context import AppContext
 from ..errors import GhApiError, GitTeamError
@@ -55,12 +56,14 @@ def resolve_target(ctx: AppContext, name: str | None) -> RepoTarget:
     """Resolve ``owner/name``: explicit name, or the GitHub remote of the current repository."""
     cfg = ctx.config
     if name:
-        if "/" in name:
-            owner, repo = name.split("/", 1)
-            if owner != cfg.owner:
-                warn(f"repository owner '{owner}' differs from configured owner '{cfg.owner}'")
-            return RepoTarget(owner, repo)
-        return RepoTarget(cfg.owner, name)
+        owner, repo = (name.split("/", 1) if "/" in name else (cfg.owner, name))
+        if not cfgmod.is_valid_login(owner):
+            raise GitTeamError(f"'{owner}' is not a valid GitHub owner name")
+        if not cfgmod.is_valid_repo_name(repo):
+            raise GitTeamError(f"'{repo}' is not a valid repository name (letters, digits, . _ - only)")
+        if owner != cfg.owner:
+            warn(f"repository owner '{owner}' differs from configured owner '{cfg.owner}'")
+        return RepoTarget(owner, repo)
     cwd = Path.cwd()
     if Git.is_repo(cwd, ctx.runner):
         git = Git(ctx.runner, cwd)
@@ -154,7 +157,13 @@ def _scaffold(ctx: AppContext, target: RepoTarget, opts: InitOptions, newly_crea
         return "up to date"
     if not opts.push:
         return f"{len(result.written)} file(s) written (not committed)"
-    git.add_all()
+    current = git.current_branch()
+    if current and current != cfg.repo.default_branch and not ctx.dry_run:
+        raise GitTeamError(
+            f"the clone at {workdir} is on branch '{current}'; the scaffold must be committed on "
+            f"'{cfg.repo.default_branch}'. Switch branches first or pass --no-push to only write the files."
+        )
+    git.add(*[p.relative_to(workdir).as_posix() for p in result.written])
     git.chmod_executable(*result.executable)
     message = "chore: initial project scaffold" if newly_created or cloned_now else "chore: add team conventions scaffold"
     git.commit(message)

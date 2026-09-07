@@ -9,7 +9,7 @@ from ..errors import ConfigError, GhApiError
 from ..ui import info, table
 
 _MIN_GIT = (2, 23)
-_MIN_GH = (2, 44)
+_MIN_GH = (2, 47)  # `gh api --slurp` needs 2.47+
 
 
 def _version(output: str) -> tuple[int, ...]:
@@ -86,7 +86,8 @@ def run(ctx: AppContext) -> bool:
     # teams referenced in config
     if cfg.mode.is_org and cfg.teams:
         try:
-            existing = {t["name"].lower() for t in ctx.gh.teams(cfg.owner)} | {t["slug"].lower() for t in ctx.gh.teams(cfg.owner)}
+            teams = ctx.gh.teams(cfg.owner)
+            existing = {t["name"].lower() for t in teams} | {t["slug"].lower() for t in teams}
             missing = [t.name for t in cfg.teams if t.name.lower() not in existing]
             add("teams", None if missing else True, "missing: " + ", ".join(missing) if missing else f"{len(cfg.teams)} configured team(s) exist")
         except GhApiError as exc:

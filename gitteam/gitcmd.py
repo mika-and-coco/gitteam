@@ -9,7 +9,7 @@ from pathlib import Path
 from .errors import GitTeamError
 from .runner import Runner
 
-_REMOTE_RE = re.compile(r"(?:github\.com[:/])(?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$")
+_REMOTE_RE = re.compile(r"(?:github\.com(?::\d+)?[:/])(?P<owner>[^/:]+)/(?P<repo>[^/]+?)(?:\.git)?/?$")
 
 
 @dataclass(frozen=True)
@@ -34,7 +34,7 @@ class Git:
 
     @staticmethod
     def is_repo(path: Path, runner: Runner | None = None) -> bool:
-        if not path.exists():
+        if not path.is_dir():
             return False
         proc = (runner or Runner()).run(
             ["git", "rev-parse", "--is-inside-work-tree"], check=False, mutating=False, cwd=path
@@ -89,13 +89,13 @@ class Git:
         out = self._out("tag", "--list", f"{prefix}*", "--sort=-v:refname")
         return out.splitlines()[0] if out else None
 
-    def commits(self, rev_range: str, include_merges: bool = False) -> list[Commit]:
-        args = ["log", "--format=%H%x1f%s%x1f%b%x1e", rev_range]
+    def commits(self, *revisions: str, include_merges: bool = False) -> list[Commit]:
+        """Commits selected by git-log revision arguments (e.g. ``"main..HEAD"`` or
+        ``"abc123", "--not", "--remotes=origin"``). Raises CommandError for an invalid range."""
+        args = ["log", "--format=%H%x1f%s%x1f%b%x1e", *revisions]
         if not include_merges:
             args.insert(1, "--no-merges")
-        proc = self._run(*args, check=False)
-        if proc.returncode != 0:
-            return []
+        proc = self._run(*args, check=True)
         commits: list[Commit] = []
         for record in proc.stdout.split("\x1e"):
             record = record.strip("\r\n")
@@ -104,6 +104,12 @@ class Git:
             sha, subject, body = (record.split("\x1f") + ["", ""])[:3]
             commits.append(Commit(sha.strip(), subject.strip(), body.strip()))
         return commits
+
+    def hooks_dir(self) -> Path:
+        """Directory git actually reads hooks from (works for worktrees and submodules)."""
+        out = self._out("rev-parse", "--git-path", "hooks")
+        path = Path(out)
+        return path if path.is_absolute() else self.toplevel() / path
 
     def config_get(self, key: str, scope: str | None = None) -> str | None:
         args = ["config"] + ([f"--{scope}"] if scope else []) + ["--get", key]
@@ -132,6 +138,10 @@ class Git:
 
     def add_all(self) -> None:
         self._run("add", "-A", mutating=True)
+
+    def add(self, *paths: str) -> None:
+        if paths:
+            self._run("add", "--", *paths, mutating=True)
 
     def chmod_executable(self, *paths: str) -> None:
         if paths:

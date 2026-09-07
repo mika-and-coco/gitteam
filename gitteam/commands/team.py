@@ -62,8 +62,9 @@ def sync(ctx: AppContext, repos_filter: list[str] | None, skip_repos: bool) -> N
         for login in team.maintainers:
             gh.team_add_member(org, slug, login, "maintainer")
             rows.append((team.name, f"maintainer {login}", "added" if login.lower() not in current_members else "ensured"))
+        maintainer_logins = {m.lower() for m in team.maintainers}
         for login in team.members:
-            if login in team.maintainers:
+            if login.lower() in maintainer_logins:
                 continue
             gh.team_add_member(org, slug, login, "member")
             rows.append((team.name, f"member {login}", "added" if login.lower() not in current_members else "ensured"))
@@ -116,8 +117,16 @@ def invite(ctx: AppContext, user: str, team: str | None, role: str, repo: str | 
         gh.collaborator_add(cfg.owner, repo, user, permission)
         ok(f"invited {user} to {cfg.owner}/{repo} with '{permission}' permission")
         return
-    gh.org_add_member(cfg.owner, user, role)
-    ok(f"{user}: organization membership '{role}' ensured (invitation sent if not yet a member)")
+    membership = gh.org_membership(cfg.owner, user)
+    if membership and membership.get("state") == "active":
+        current_role = membership.get("role", "member")
+        if current_role == role:
+            info(f"{user} is already an organization {role}")
+        else:
+            warn(f"{user} is already an organization {current_role}; not changing the role to '{role}' (use the GitHub UI for role changes)")
+    else:
+        gh.org_add_member(cfg.owner, user, role)
+        ok(f"{user}: organization invitation sent with role '{role}'")
     if team:
         index = _team_index(ctx, cfg.owner)
         found = index.get(team.lower())

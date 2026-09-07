@@ -67,21 +67,38 @@ def init_state() -> None:
     st.session_state.setdefault("verbose", False)
     pending = st.session_state.pop("pending_cfg_path", None)
     if pending:
-        st.session_state.cfg_path = pending
+        st.session_state.cfg_path = str(Path(pending).expanduser().resolve())
     if "cfg_path" not in st.session_state:
         found = cfgmod.find_config()
-        st.session_state.cfg_path = str(found) if found else str(Path.cwd() / cfgmod.CONFIG_FILENAME)
+        default = Path.cwd() / cfgmod.CONFIG_FILENAME
+        if found and check_config_path(found) is None:
+            st.session_state.cfg_path = str(found.resolve())
+        else:
+            st.session_state.cfg_path = str(default.resolve())
+    # The YAML editor keeps its text per widget key; drop it whenever the target file changes.
+    if st.session_state.get("_editor_path") != st.session_state.cfg_path:
+        st.session_state.pop("config_editor", None)
+        st.session_state["_editor_path"] = st.session_state.cfg_path
+
+
+def reset_config_editor() -> None:
+    """Forget the YAML editor text so it is reloaded from disk on the next run."""
+    st.session_state.pop("config_editor", None)
 
 
 def config_path() -> Path:
-    return Path(st.session_state.get("cfg_path") or cfgmod.CONFIG_FILENAME).expanduser()
+    raw = st.session_state.get("cfg_path") or cfgmod.CONFIG_FILENAME
+    return Path(raw).expanduser().resolve()
 
 
 def make_context(dry_run: bool) -> AppContext:
     path = config_path()
     usable = path.is_file() and check_config_path(path) is None and cfgmod.is_trusted(path)
+    # An unusable (missing / disallowed / untrusted) path must not fall back to directory discovery;
+    # commands then see "no config" consistently with what the page shows.
     return AppContext.create(
         config_path=path if usable else None,
+        discover=usable,
         dry_run=dry_run,
         verbose=st.session_state.get("verbose", False),
     )
@@ -149,11 +166,16 @@ def readable_config_text(path: Path) -> tuple[str | None, str | None]:
     if problem:
         return None, problem
     text = path.read_text(encoding="utf-8", errors="replace")
+    is_named_config = path.name.lower().endswith(cfgmod.CONFIG_FILENAME)
     try:
         data = yaml.safe_load(text)
     except yaml.YAMLError as exc:
+        if is_named_config:
+            return text, f"YAML の書き方に誤りがあります（修正して保存してください）: {exc}"
         return None, f"YAML の書き方に誤りがあります: {exc}"
     if not isinstance(data, dict) or not ({"owner", "mode"} & set(data)):
+        if is_named_config:
+            return text, "owner / mode が見つかりません。設定として読めるように修正してください。"
         return None, "gitteam の設定ファイル（owner / mode を含む YAML）ではないため表示しません。"
     return text, None
 
@@ -231,6 +253,7 @@ def run_captured(fn: Callable[..., Any], *args: Any, cwd: Path | None = None, **
         width=OUTPUT_WIDTH,
         emoji=False,
         highlight=False,
+        soft_wrap=True,
     )
     with rich_ui.redirected(console):
         try:
@@ -343,11 +366,11 @@ def describe_command(line: str) -> str:
 
 
 _ERROR_HINTS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"not found on PATH", re.I), "必要なコマンドが見つかりません。git と gh（GitHub CLI）がインストールされているか確認してください。"),
     (re.compile(r"HTTP 401|Bad credentials|not logged in", re.I), "GitHub にログインできていません。ターミナルで `gh auth login` を実行してください。"),
     (re.compile(r"HTTP 404|not found on GitHub|Not Found", re.I), "見つかりませんでした。オーナー名・リポジトリ名・チーム名の綴りと、そのアカウントへのアクセス権を確認してください。組織のチームを扱う場合は `gh auth refresh -s admin:org` で gh の権限が必要なこともあります。"),
     (re.compile(r"HTTP 403|Resource not accessible|Must have admin", re.I), "権限が足りません。組織の管理者であることを確認し、`gh auth refresh -s admin:org` で gh の権限を追加してください。"),
     (re.compile(r"HTTP 422", re.I), "GitHub がこの設定を受け付けませんでした。すでに存在するか、現在のプラン / 可視性では使えない設定の可能性があります。"),
-    (re.compile(r"not found on PATH", re.I), "必要なコマンドが見つかりません。git と gh（GitHub CLI）がインストールされているか確認してください。"),
     (re.compile(r"no gitteam\.yaml", re.I), "設定ファイルがありません。「はじめに」ページで作成してください。"),
     (re.compile(r"not inside a git repository|not a git repository", re.I), "指定した場所は git リポジトリではありません。「ローカルリポジトリのパス」を確認してください。"),
     (re.compile(r"already exists", re.I), "同じ名前のものがすでに存在します。別の名前にするか、既存のものを利用してください。"),
@@ -481,12 +504,16 @@ def refresh_environment() -> None:
 def local_repo_info(path: Path) -> dict[str, str | None]:
     """Branch / remote information for a local clone (None values when not a repo)."""
     runner = Runner()
-    if not path.is_dir() or not Git.is_repo(path, runner):
-        return {"is_repo": None, "branch": None, "remote": None, "toplevel": None}
-    git = Git(runner, path)
-    return {
-        "is_repo": "yes",
-        "branch": git.current_branch() or "(detached)",
-        "remote": git.remote_url(),
-        "toplevel": str(git.toplevel()),
-    }
+    empty = {"is_repo": None, "branch": None, "remote": None, "toplevel": None}
+    try:
+        if not path.is_dir() or not Git.is_repo(path, runner):
+            return empty
+        git = Git(runner, path)
+        return {
+            "is_repo": "yes",
+            "branch": git.current_branch() or "(detached)",
+            "remote": git.remote_url(),
+            "toplevel": str(git.toplevel()),
+        }
+    except GitTeamError:
+        return empty
