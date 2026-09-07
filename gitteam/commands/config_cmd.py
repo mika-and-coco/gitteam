@@ -50,9 +50,43 @@ def init(ctx: AppContext, owner: str, mode: cfgmod.Mode, output: Path, force: bo
         return output
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(content, encoding="utf-8", newline="\n")
+    cfgmod.trust_path(output)  # created by this user, so it is trusted for discovery
     ok(f"wrote {output}")
     info("edit teams/labels/protection as needed, then run `gitteam doctor` to verify the setup.")
     return output
+
+
+def trust(ctx: AppContext, path: Path | None) -> Path:
+    target = path or cfgmod.find_config()
+    if target is None or not target.is_file():
+        raise ConfigError("no gitteam.yaml to trust; pass the path explicitly")
+    cfgmod.load(target)  # must at least be a valid config before trusting it
+    if ctx.dry_run:
+        info(f"[dry-run] would trust {target}")
+        return target
+    cfgmod.trust_path(target)
+    ok(f"trusted {target.resolve()}")
+    info(f"the list of trusted configs lives in {cfgmod.user_config_dir()}")
+    return target
+
+
+def untrust(ctx: AppContext, path: Path | None) -> None:
+    target = path or cfgmod.find_config()
+    if target is None:
+        raise ConfigError("no gitteam.yaml given")
+    if ctx.dry_run:
+        info(f"[dry-run] would untrust {target}")
+        return
+    if cfgmod.untrust_path(target):
+        ok(f"removed {target.resolve()} from the trusted list")
+    else:
+        info(f"{target.resolve()} was not in the trusted list")
+
+
+def show_trusted() -> None:
+    entries = sorted(str(p) for p in cfgmod.trusted_paths())
+    table("Trusted gitteam.yaml files", ["path"], [(p,) for p in entries])
+    info("configs under " + ", ".join(str(d) for d in cfgmod.user_config_dirs()) + " are always trusted")
 
 
 def validate(ctx: AppContext) -> cfgmod.Config:

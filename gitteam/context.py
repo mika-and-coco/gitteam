@@ -5,7 +5,7 @@ from pathlib import Path
 
 from . import capabilities as caps
 from . import config as cfgmod
-from .errors import ConfigError, GhApiError
+from .errors import ConfigError, GhApiError, UntrustedConfigError
 from .gh import Gh
 from .runner import Runner
 from .ui import warn
@@ -34,14 +34,15 @@ class AppContext:
 
     def load_config(self) -> cfgmod.Config:
         if self._config is None:
-            path = cfgmod.find_config(self.config_path)
-            if path is None:
+            found = cfgmod.discover_config(self.config_path)
+            if found is None:
                 raise ConfigError(
                     "no gitteam.yaml found (searched the current directory and parents, "
                     "~/.config/gitteam/ and %APPDATA%/gitteam/). Run `gitteam config init` first "
                     "or pass --config PATH."
                 )
-            self._config = cfgmod.load(path)
+            cfgmod.require_trusted(found)
+            self._config = cfgmod.load(found.path)
         return self._config
 
     @property
@@ -49,9 +50,14 @@ class AppContext:
         return self.load_config()
 
     def config_or_default(self) -> cfgmod.Config:
-        """Config if available, otherwise built-in defaults (for `dev setup` on a fresh machine)."""
+        """Config if available, otherwise built-in defaults (for `dev setup` on a fresh machine).
+
+        An untrusted config is never silently ignored: the user must decide.
+        """
         try:
             return self.load_config()
+        except UntrustedConfigError:
+            raise
         except ConfigError:
             return cfgmod.default_config()
 

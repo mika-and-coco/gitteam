@@ -9,6 +9,10 @@ class ConfigError(GitTeamError):
     """Invalid or missing configuration."""
 
 
+class UntrustedConfigError(ConfigError):
+    """A gitteam.yaml was discovered inside the working tree but has not been trusted yet."""
+
+
 class CommandError(GitTeamError):
     """An external command (git/gh) failed."""
 

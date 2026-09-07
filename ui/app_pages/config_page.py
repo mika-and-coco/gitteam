@@ -12,9 +12,16 @@ st.caption("チームの決めごと（誰が・どのリポジトリに・ど�
 path = svc.config_path()
 cfg, cfg_error = svc.load_config()
 
+location_problem = svc.check_config_path(path)
+if location_problem:
+    st.error(location_problem, icon=":material/error:")
+    st.stop()
 if not path.is_file():
     st.info("設定ファイルがまだありません。「はじめに」ページの手順 2 から作成してください。", icon=":material/info:")
     st.page_link("app_pages/start.py", label="はじめにページへ", icon=":material/flag:")
+    st.stop()
+if svc.trust_status(path) == "untrusted":
+    st.warning(cfg_error, icon=":material/gpp_maybe:")
     st.stop()
 
 if cfg is None:
@@ -207,7 +214,10 @@ with yaml_tab:
     def _reload_editor() -> None:
         st.session_state.pop("config_editor", None)
 
-    file_text = path.read_text(encoding="utf-8")
+    file_text, read_error = svc.readable_config_text(path)
+    if file_text is None:
+        st.error(read_error, icon=":material/error:")
+        st.stop()
     st.text_area("gitteam.yaml", value=file_text, key="config_editor", height=520, label_visibility="collapsed")
     editor_text = st.session_state.get("config_editor", file_text)
     with st.container(horizontal=True):

@@ -124,6 +124,33 @@ def config_show(ctx: typer.Context) -> None:
     config_cmd.show(_ctx(ctx))
 
 
+@config_app.command("trust")
+def config_trust(
+    ctx: typer.Context,
+    path: Optional[Path] = typer.Argument(None, help="gitteam.yaml to trust (default: the one discovered from the current directory)."),
+) -> None:
+    """Mark a gitteam.yaml found inside a working tree as trusted (like git's safe.directory)."""
+    from .commands import config_cmd
+
+    config_cmd.trust(_ctx(ctx), path)
+
+
+@config_app.command("untrust")
+def config_untrust(ctx: typer.Context, path: Optional[Path] = typer.Argument(None)) -> None:
+    """Remove a gitteam.yaml from the trusted list."""
+    from .commands import config_cmd
+
+    config_cmd.untrust(_ctx(ctx), path)
+
+
+@config_app.command("trusted")
+def config_trusted(ctx: typer.Context) -> None:
+    """List trusted gitteam.yaml files."""
+    from .commands import config_cmd
+
+    config_cmd.show_trusted()
+
+
 @config_app.command("capabilities")
 def config_capabilities(
     ctx: typer.Context,

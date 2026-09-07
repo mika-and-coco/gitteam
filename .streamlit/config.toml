@@ -1,3 +1,9 @@
+[server]
+# Bind to the loopback interface only. The UI has no authentication and can read/write
+# the team configuration and run git/gh, so it must never be reachable from the network.
+address = "localhost"
+port = 8501
+
 [theme]
 primaryColor = "#1f6feb"
 baseRadius = "medium"

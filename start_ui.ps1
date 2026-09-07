@@ -12,4 +12,4 @@ if (-not (Test-Path $python)) {
 }
 
 Write-Host "[gitteam] 画面を起動します。ブラウザが開かない場合は http://localhost:8501 を開いてください。"
-& $python -m streamlit run ui\streamlit_app.py
+& $python -m streamlit run ui\streamlit_app.py --server.address localhost

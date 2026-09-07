@@ -101,8 +101,11 @@ with st.container(border=True):
             output = st.text_input("保存場所", value=str(svc.config_path()), key="start_output")
             submitted = st.form_submit_button("設定ファイルを作成する", type="primary", icon=":material/add:")
         if submitted:
+            location_problem = svc.check_config_path(Path(output).expanduser())
             if not owner.strip():
                 st.error("オーナーを入力してください。")
+            elif location_problem:
+                st.error(location_problem, icon=":material/error:")
             else:
                 result = svc.run_captured(
                     config_cmd.init,

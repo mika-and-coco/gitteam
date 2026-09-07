@@ -25,8 +25,9 @@ def _app(config_path: Path | None) -> AppTest:
 
 
 @pytest.fixture
-def config_file(tmp_path: Path) -> Path:
-    path = tmp_path / "gitteam.yaml"
+def config_file(isolated_config_home: Path) -> Path:
+    # Inside the user config dir: an allowed location for the UI and implicitly trusted.
+    path = isolated_config_home / "gitteam.yaml"
     path.write_text(
         "# team config\nowner: acme\nmode: org\nteams:\n  - name: core\n    members: [bob]\n",
         encoding="utf-8",
@@ -49,8 +50,8 @@ def test_pages_render_with_config(page: str, config_file: Path):
     assert not at.exception, [e.value for e in at.exception]
 
 
-def test_start_wizard_creates_config(tmp_path: Path):
-    target = tmp_path / "new" / "gitteam.yaml"
+def test_start_wizard_creates_config(isolated_config_home: Path):
+    target = isolated_config_home / "new" / "gitteam.yaml"
     at = _app(target).run()
     at.text_input(key="start_owner").set_value("acme")
     at.text_input(key="start_output").set_value(str(target))
@@ -184,3 +185,54 @@ def test_capability_info_covers_every_row():
     keys = [key for key, _ in resolve(Mode.ORG, Plan.FREE, "private").as_rows()]
     assert set(keys) == set(gl.CAPABILITY_INFO)
     assert all(name and description for name, description in gl.CAPABILITY_INFO.values())
+
+
+# ---------------------------------------------------------------- security: config path limits & trust
+
+
+def test_check_config_path_limits_location_and_type(isolated_config_home: Path, tmp_path: Path):
+    assert svc.check_config_path(isolated_config_home / "team.yaml") is None
+    assert svc.check_config_path(ROOT / "gitteam.yaml") is None
+    assert svc.check_config_path(Path.home() / ".ssh" / "id_ed25519")  # not yaml
+    assert svc.check_config_path(Path.home() / ".config" / "gh" / "hosts.yml")  # yaml but outside allowed dirs
+    assert svc.check_config_path(tmp_path / "elsewhere" / "gitteam.yaml")  # outside allowed dirs
+
+
+def test_readable_config_text_refuses_non_gitteam_yaml(isolated_config_home: Path):
+    secret_like = isolated_config_home / "hosts.yaml"
+    secret_like.write_text("github.com:\n  oauth_token: gho_secret\n", encoding="utf-8")
+    text, error = svc.readable_config_text(secret_like)
+    assert text is None and error
+    real = isolated_config_home / "gitteam.yaml"
+    real.write_text("owner: acme\n", encoding="utf-8")
+    text, error = svc.readable_config_text(real)
+    assert text == "owner: acme\n" and error is None
+
+
+def test_wizard_refuses_output_outside_allowed_dirs(tmp_path: Path):
+    outside = tmp_path / "outside" / "gitteam.yaml"
+    at = _app(ROOT / "nonexistent.yaml").run()
+    at.text_input(key="start_owner").set_value("acme")
+    at.text_input(key="start_output").set_value(str(outside))
+    at.button[0].click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert not outside.exists()
+    assert any("使えません" in e.value for e in at.error)
+
+
+def test_untrusted_config_in_cwd_needs_explicit_trust(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    clone = tmp_path / "clone"
+    clone.mkdir()
+    cfg_path = clone / "gitteam.yaml"
+    cfg_path.write_text("owner: acme\nmode: org\n", encoding="utf-8")
+    monkeypatch.chdir(clone)
+    at = _app(cfg_path).run()
+    assert not at.exception, [e.value for e in at.exception]
+    trust_buttons = [b for b in at.sidebar.button if "信頼する" in b.label]
+    assert trust_buttons, "expected a trust button for an untrusted working-tree config"
+    at.switch_page("app_pages/config_page.py").run()
+    assert not at.text_area, "editor must not show an untrusted config"
+    trust_buttons = [b for b in at.sidebar.button if "信頼する" in b.label]
+    trust_buttons[0].click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert at.text_area(key="config_editor")

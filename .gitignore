@@ -1,9 +1,36 @@
+# --- 公開してはいけないもの（実データ・認証情報） ---
+# 実際のチーム設定（組織名・メンバー名を含む）。雛形は gitteam/templates/ にあります
+gitteam.yaml
+*.local.yaml
+# Streamlit の秘密情報
+.streamlit/secrets.toml
+# 認証情報・鍵・環境変数
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+hosts.yml
+# ログ・画面キャプチャ
+*.log
+screenshots/
+
+# --- 生成物・ローカル環境 ---
 .venv/
+venv/
 __pycache__/
 *.pyc
 *.egg-info/
 build/
 dist/
 .pytest_cache/
-gitteam.yaml
-.streamlit/secrets.toml
+.mypy_cache/
+.ruff_cache/
+
+# --- OS / エディタ ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

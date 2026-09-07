@@ -12,14 +12,76 @@ from typing import Any
 
 import yaml
 
-from .errors import ConfigError
+from .errors import ConfigError, UntrustedConfigError
 
 CONFIG_FILENAME = "gitteam.yaml"
+TRUST_FILENAME = "trusted-configs.txt"
 ENV_CONFIG = "GITTEAM_CONFIG"
+ENV_CONFIG_HOME = "GITTEAM_CONFIG_HOME"
 
 VISIBILITIES = ("private", "public", "internal")
 PERMISSIONS = ("pull", "triage", "push", "maintain", "admin")
 PROTECTION_ENGINES = ("auto", "ruleset", "classic")
+
+# Values that end up inside generated shell hooks / workflow YAML must stay within a safe alphabet.
+_SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
+_SAFE_GLOB_RE = re.compile(r"^[A-Za-z0-9._/*?-]+$")
+_SAFE_REGEX_RE = re.compile(r"^[A-Za-z0-9._/\\\-\[\]()^$*+?|{},:=!<>]+$")
+_SAFE_LOGIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")
+_SAFE_REPO_RE = re.compile(r"^(?!\.{1,2}$)[A-Za-z0-9_.-]+$")  # GitHub repository name, no path separators
+_SAFE_TEMPLATE_NAME_RE = re.compile(r"^[A-Za-z0-9_.+-]+$")  # github/gitignore template names such as C++
+
+# git config keys `dev setup` may write. Anything that makes git execute a program
+# (core.fsmonitor, core.sshCommand, credential.helper, core.hooksPath, core.pager, alias "!", ...) is excluded.
+ALLOWED_GIT_CONFIG_KEYS = frozenset(
+    key.lower()
+    for key in (
+        "init.defaultBranch",
+        "pull.rebase",
+        "pull.ff",
+        "fetch.prune",
+        "fetch.pruneTags",
+        "push.autoSetupRemote",
+        "push.default",
+        "push.followTags",
+        "rebase.autoStash",
+        "rebase.autoSquash",
+        "rebase.updateRefs",
+        "rerere.enabled",
+        "rerere.autoUpdate",
+        "merge.conflictStyle",
+        "merge.ff",
+        "diff.algorithm",
+        "diff.colorMoved",
+        "diff.renames",
+        "core.longpaths",
+        "core.autocrlf",
+        "core.eol",
+        "core.safecrlf",
+        "core.ignorecase",
+        "core.whitespace",
+        "core.fileMode",
+        "core.quotePath",
+        "color.ui",
+        "column.ui",
+        "commit.gpgsign",
+        "commit.verbose",
+        "tag.gpgsign",
+        "tag.sort",
+        "gpg.format",
+        "user.signingkey",
+        "branch.autoSetupRebase",
+        "branch.sort",
+        "status.showUntrackedFiles",
+        "status.branch",
+        "log.date",
+        "help.autocorrect",
+        "credential.useHttpPath",
+        "submodule.recurse",
+        "advice.detachedHead",
+        "apply.whitespace",
+    )
+)
 
 
 class Mode(str, Enum):
@@ -374,8 +436,134 @@ def validate(cfg: Config) -> None:
         problems.append("dev.line_endings: must be auto, lf or crlf")
     if cfg.dev.signing not in ("none", "ssh", "gpg"):
         problems.append("dev.signing: must be none, ssh or gpg")
+    problems.extend(_safety_problems(cfg))
     if problems:
         raise ConfigError("invalid configuration:\n  - " + "\n  - ".join(problems))
+
+
+def _safety_problems(cfg: Config) -> list[str]:
+    """Reject values that could inject into generated hooks/workflows or make git run programs."""
+    problems: list[str] = []
+    if cfg.owner and not _SAFE_LOGIN_RE.match(cfg.owner):
+        problems.append("owner: must be a GitHub login (letters, digits, hyphens)")
+    if not _SAFE_REGEX_RE.match(cfg.conventions.branch_pattern):
+        problems.append(
+            "conventions.branch_pattern: contains characters that are not allowed in generated hooks "
+            "(quotes, whitespace, ;, &, backticks, #). Allowed: letters, digits and . _ / \\ - [ ] ( ) ^ $ * + ? | { } , : = ! < >"
+        )
+    named: list[tuple[str, list[str]]] = [
+        ("conventions.branch_types", cfg.conventions.branch_types),
+        ("conventions.commit_types", cfg.conventions.commit_types),
+        ("conventions.commit_scopes", cfg.conventions.commit_scopes),
+        ("conventions.protected_branches", cfg.conventions.protected_branches),
+    ]
+    for label, values in named:
+        for value in values:
+            if not _SAFE_NAME_RE.match(value):
+                problems.append(f"{label}: '{value}' may only contain letters, digits and . _ / -")
+    for repo in cfg.dev.repos:
+        if not _SAFE_REPO_RE.match(repo):
+            problems.append(f"dev.repos: '{repo}' is not a valid repository name (letters, digits, . _ - only)")
+    for name in cfg.repo.gitignore_templates:
+        if not _SAFE_TEMPLATE_NAME_RE.match(name):
+            problems.append(f"repo.gitignore_templates: '{name}' is not a valid template name")
+    if cfg.conventions.tag_prefix and not _SAFE_NAME_RE.match(cfg.conventions.tag_prefix):
+        problems.append("conventions.tag_prefix: may only contain letters, digits and . _ / -")
+    if not _SAFE_NAME_RE.match(cfg.repo.default_branch):
+        problems.append("repo.default_branch: may only contain letters, digits and . _ / -")
+    for branch in cfg.protection.branches:
+        if not _SAFE_GLOB_RE.match(branch):
+            problems.append(f"protection.branches: '{branch}' may only contain letters, digits and . _ / - * ?")
+    for key, value in cfg.dev.git_config.items():
+        if key.lower() not in ALLOWED_GIT_CONFIG_KEYS:
+            problems.append(
+                f"dev.git_config: '{key}' is not an allowed key. gitteam only writes settings that cannot make git "
+                f"execute programs. Allowed keys: {', '.join(sorted(ALLOWED_GIT_CONFIG_KEYS))}"
+            )
+        if "\n" in value or "\r" in value:
+            problems.append(f"dev.git_config: '{key}' value must be a single line")
+    for alias, command in cfg.dev.aliases.items():
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]*", alias):
+            problems.append(f"dev.aliases: '{alias}' is not a valid alias name")
+        if command.lstrip().startswith("!"):
+            problems.append(f"dev.aliases: '{alias}' runs a shell command ('!...'); shell aliases are not allowed")
+        if "\n" in command or "\r" in command:
+            problems.append(f"dev.aliases: '{alias}' must be a single line")
+    return problems
+
+
+# --------------------------------------------------------------------------- discovery & trust
+
+
+def user_config_dir() -> Path:
+    """Directory owned by the user for gitteam state (config, trusted list)."""
+    env = os.environ.get(ENV_CONFIG_HOME)
+    if env:
+        return Path(env)
+    return Path.home() / ".config" / "gitteam"
+
+
+def user_config_dirs() -> list[Path]:
+    dirs = [user_config_dir()]
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        dirs.append(Path(appdata) / "gitteam")
+    return dirs
+
+
+def _is_within(path: Path, directory: Path) -> bool:
+    try:
+        path.resolve().relative_to(directory.resolve())
+        return True
+    except (ValueError, OSError):
+        return False
+
+
+def _trust_file() -> Path:
+    return user_config_dir() / TRUST_FILENAME
+
+
+def trusted_paths() -> set[Path]:
+    file = _trust_file()
+    if not file.is_file():
+        return set()
+    return {Path(line.strip()) for line in file.read_text(encoding="utf-8").splitlines() if line.strip()}
+
+
+def is_trusted(path: Path) -> bool:
+    """Configs in user-owned directories are always trusted; others need an explicit `config trust`."""
+    resolved = path.resolve()
+    if any(_is_within(resolved, directory) for directory in user_config_dirs()):
+        return True
+    return resolved in trusted_paths()
+
+
+def trust_path(path: Path) -> None:
+    file = _trust_file()
+    file.parent.mkdir(parents=True, exist_ok=True)
+    entries = trusted_paths()
+    entries.add(path.resolve())
+    file.write_text("\n".join(sorted(str(p) for p in entries)) + "\n", encoding="utf-8")
+
+
+def untrust_path(path: Path) -> bool:
+    entries = trusted_paths()
+    resolved = path.resolve()
+    if resolved not in entries:
+        return False
+    entries.discard(resolved)
+    _trust_file().write_text("\n".join(sorted(str(p) for p in entries)) + ("\n" if entries else ""), encoding="utf-8")
+    return True
+
+
+@dataclass(frozen=True)
+class DiscoveredConfig:
+    path: Path
+    source: str  # explicit | env | cwd | user
+
+    @property
+    def needs_trust(self) -> bool:
+        return self.source == "cwd"
 
 
 def candidate_paths(start: Path | None = None) -> list[Path]:
@@ -386,23 +574,49 @@ def candidate_paths(start: Path | None = None) -> list[Path]:
     current = (start or Path.cwd()).resolve()
     for directory in [current, *current.parents]:
         paths.append(directory / CONFIG_FILENAME)
-    home = Path.home()
-    paths.append(home / ".config" / "gitteam" / CONFIG_FILENAME)
-    appdata = os.environ.get("APPDATA")
-    if appdata:
-        paths.append(Path(appdata) / "gitteam" / CONFIG_FILENAME)
+    for directory in user_config_dirs():
+        paths.append(directory / CONFIG_FILENAME)
     return paths
 
 
-def find_config(explicit: Path | None = None) -> Path | None:
+def discover_config(explicit: Path | None = None, start: Path | None = None) -> DiscoveredConfig | None:
+    """Locate gitteam.yaml and report where it came from.
+
+    Order: --config (explicit) > GITTEAM_CONFIG (env) > current directory and its parents (cwd)
+    > user config directories (user). Files found via ``cwd`` may have been shipped inside a
+    cloned repository and therefore require :func:`is_trusted` before use.
+    """
     if explicit:
         if not explicit.exists():
             raise ConfigError(f"config file not found: {explicit}")
-        return explicit
-    for path in candidate_paths():
-        if path.is_file():
-            return path
+        return DiscoveredConfig(explicit, "explicit")
+    env = os.environ.get(ENV_CONFIG)
+    if env and Path(env).is_file():
+        return DiscoveredConfig(Path(env), "env")
+    current = (start or Path.cwd()).resolve()
+    for directory in [current, *current.parents]:
+        candidate = directory / CONFIG_FILENAME
+        if candidate.is_file():
+            return DiscoveredConfig(candidate, "cwd")
+    for directory in user_config_dirs():
+        candidate = directory / CONFIG_FILENAME
+        if candidate.is_file():
+            return DiscoveredConfig(candidate, "user")
     return None
+
+
+def find_config(explicit: Path | None = None) -> Path | None:
+    found = discover_config(explicit)
+    return found.path if found else None
+
+
+def require_trusted(found: DiscoveredConfig) -> None:
+    if found.needs_trust and not is_trusted(found.path):
+        raise UntrustedConfigError(
+            f"gitteam.yaml found inside the working tree is not trusted yet: {found.path}\n"
+            "A config shipped with a cloned repository can change git settings and generated hooks. "
+            "Review it, then run `gitteam config trust` (or pass --config PATH to use it once)."
+        )
 
 
 def load(path: Path) -> Config:

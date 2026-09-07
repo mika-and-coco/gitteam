@@ -36,11 +36,25 @@ page = st.navigation(
 )
 
 with st.sidebar:
-    cfg, _ = svc.load_config()
+    cfg, cfg_error = svc.load_config()
     if cfg:
         st.badge(f"設定済み: {cfg.owner}", icon=":material/check:", color="green")
     else:
-        st.badge("設定はまだありません", icon=":material/info:", color="orange")
+        status = svc.trust_status(svc.config_path())
+        if status == "untrusted":
+            st.badge("未信頼の設定ファイル", icon=":material/gpp_maybe:", color="orange")
+            st.caption(
+                "このフォルダーにある gitteam.yaml は、あなたが作成したものではない可能性があります。"
+                "内容を確認してから信頼してください。"
+            )
+            if st.button("この設定ファイルを信頼する", icon=":material/verified_user:"):
+                svc.trust_current_config()
+                st.rerun()
+        elif status == "missing":
+            st.badge("設定はまだありません", icon=":material/info:", color="orange")
+        else:
+            st.badge("設定を読み込めません", icon=":material/error:", color="red")
+            st.caption(cfg_error or "")
     with st.expander("上級者向け", icon=":material/tune:"):
         st.text_input("設定ファイルの場所", key="cfg_path", help="通常は変更不要です。別の gitteam.yaml を使うときだけ指定します。")
         st.toggle("詳細ログを表示する", key="verbose", help="実行した git / gh コマンドをすべて詳細ログに出します。")

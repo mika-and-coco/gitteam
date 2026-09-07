@@ -11,4 +11,4 @@ if [ ! -x ".venv/bin/python" ]; then
 fi
 
 echo "[gitteam] Starting the web UI. If the browser does not open, visit http://localhost:8501"
-exec .venv/bin/python -m streamlit run ui/streamlit_app.py
+exec .venv/bin/python -m streamlit run ui/streamlit_app.py --server.address localhost

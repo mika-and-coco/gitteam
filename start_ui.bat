@@ -11,7 +11,7 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 echo [gitteam] Starting the web UI. If the browser does not open, visit http://localhost:8501
-".venv\Scripts\python.exe" -m streamlit run ui\streamlit_app.py
+".venv\Scripts\python.exe" -m streamlit run ui\streamlit_app.py --server.address localhost
 goto :eof
 
 :error

@@ -79,22 +79,83 @@ def config_path() -> Path:
 
 def make_context(dry_run: bool) -> AppContext:
     path = config_path()
+    usable = path.is_file() and check_config_path(path) is None and cfgmod.is_trusted(path)
     return AppContext.create(
-        config_path=path if path.is_file() else None,
+        config_path=path if usable else None,
         dry_run=dry_run,
         verbose=st.session_state.get("verbose", False),
     )
 
 
+def allowed_config_dirs() -> list[Path]:
+    """Directories a config file may live in when chosen from the UI."""
+    return [Path.cwd().resolve(), *[d.resolve() for d in cfgmod.user_config_dirs()]]
+
+
+def _within(path: Path, directory: Path) -> bool:
+    try:
+        path.relative_to(directory)
+        return True
+    except ValueError:
+        return False
+
+
+def check_config_path(path: Path) -> str | None:
+    """Reject paths that are not YAML files inside an allowed directory (prevents arbitrary file access)."""
+    if path.suffix.lower() not in (".yaml", ".yml"):
+        return "設定ファイルには .yaml / .yml ファイルのみ指定できます。"
+    resolved = path.expanduser().resolve()
+    if not any(_within(resolved, directory) for directory in allowed_config_dirs()):
+        places = "、".join(str(d) for d in allowed_config_dirs())
+        return f"この場所の設定ファイルは使えません。使用できる場所: {places}"
+    return None
+
+
+def trust_status(path: Path) -> str:
+    """'trusted' | 'untrusted' (found in the working tree, not yet trusted) | 'missing'."""
+    if not path.is_file():
+        return "missing"
+    return "trusted" if cfgmod.is_trusted(path) else "untrusted"
+
+
+def trust_current_config() -> None:
+    path = config_path()
+    if check_config_path(path) is None and path.is_file():
+        cfgmod.trust_path(path)
+
+
 def load_config() -> tuple[cfgmod.Config | None, str | None]:
     """Return ``(config, error)`` for the configured path without raising."""
     path = config_path()
+    problem = check_config_path(path)
+    if problem:
+        return None, problem
     if not path.is_file():
         return None, f"設定ファイルがまだありません: {path}"
+    if not cfgmod.is_trusted(path):
+        return None, (
+            f"このフォルダーで見つかった設定ファイル（{path}）はまだ信頼されていません。"
+            "内容を確認したうえで、サイドバーの「この設定ファイルを信頼する」を押してください。"
+        )
     try:
         return cfgmod.load(path), None
     except GitTeamError as exc:
         return None, str(exc)
+
+
+def readable_config_text(path: Path) -> tuple[str | None, str | None]:
+    """Return the raw text only if the file looks like a gitteam config (never arbitrary files)."""
+    problem = check_config_path(path)
+    if problem:
+        return None, problem
+    text = path.read_text(encoding="utf-8", errors="replace")
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        return None, f"YAML の書き方に誤りがあります: {exc}"
+    if not isinstance(data, dict) or not ({"owner", "mode"} & set(data)):
+        return None, "gitteam の設定ファイル（owner / mode を含む YAML）ではないため表示しません。"
+    return text, None
 
 
 def validate_yaml_text(text: str) -> tuple[cfgmod.Config | None, str | None]:

@@ -193,3 +193,16 @@ streamlit run ui/streamlit_app.py   # 手動起動
 * **かんたん設定**タブでは、チーム・メンバー・main の保護・作業ルールを表とトグルで編集できます（YAML のコメントは保持されます）。
 * 用語には ? のツールチップが付き、**用語集とよくある質問**ページにまとまっています。
 * 起動は `start_ui.bat`（Windows、ダブルクリック）/ `start_ui.ps1` / `start_ui.sh` で、初回は仮想環境の作成と依存関係の導入も自動で行います。
+
+## セキュリティ
+
+詳細は [SECURITY.md](SECURITY.md)、公開前の確認事項は [docs/publishing-checklist.md](docs/publishing-checklist.md) を参照してください。
+
+* **Web UI は localhost のみで待ち受け**ます（`.streamlit/config.toml` と起動スクリプトで固定）。認証がないため LAN に公開しないでください。
+* **作業ディレクトリで見つかった `gitteam.yaml` は明示的に信頼するまで使いません**（git の `safe.directory` と同じ考え方）。
+  クローンしたリポジトリに同梱された設定を確認したら `gitteam config trust` を実行します。`config init` で自分が作った設定と、
+  `~/.config/gitteam/` 配下の設定は自動的に信頼されます。`--config PATH` で明示指定した場合も同様です。
+* **`dev.git_config` は許可されたキーのみ**書き込みます。git にプログラムを実行させる設定（`core.fsmonitor`、`core.sshCommand`、
+  `credential.helper`、`core.hooksPath`、`!` で始まるエイリアスなど）は設定の検証で拒否されます。
+* **hooks / Actions に埋め込まれる値は安全な文字集合に制限**され、シェルや YAML への注入はできません。
+* UI から指定できる設定ファイルはプロジェクト配下またはユーザー設定ディレクトリ配下の `.yaml` に限られ、gitteam の設定として読める内容のときだけ表示します。
