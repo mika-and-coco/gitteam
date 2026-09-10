@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from .. import config as cfgmod
 from ..config import Mode
 from ..context import AppContext
-from ..errors import CapabilityError, GhApiError
+from ..errors import CapabilityError, GhApiError, GitTeamError
 from ..ui import info, ok, table, warn
 
 
@@ -37,6 +38,9 @@ def _target_repos(ctx: AppContext, patterns: list[str], repos_filter: list[str] 
 def sync(ctx: AppContext, repos_filter: list[str] | None, skip_repos: bool) -> None:
     cfg = ctx.config
     gh = ctx.gh
+    for repo in repos_filter or []:
+        if not cfgmod.is_valid_repo_name(repo):
+            raise GitTeamError(f"--repo '{repo}' is not a valid repository name (letters, digits, . _ - only)")
     if cfg.mode is Mode.PERSONAL:
         _sync_collaborators(ctx, repos_filter, skip_repos)
         return
@@ -46,6 +50,17 @@ def sync(ctx: AppContext, repos_filter: list[str] | None, skip_repos: bool) -> N
     all_repos: list[str] | None = None
     if not skip_repos and any("*" in t.repos for t in cfg.teams) and not repos_filter:
         all_repos = [r["name"] for r in gh.org_repos(org)]
+
+    failures = 0
+
+    def attempt(team_name: str, item: str, result: str, action) -> None:
+        nonlocal failures
+        try:
+            action()
+            rows.append((team_name, item, result))
+        except GhApiError as exc:
+            failures += 1
+            rows.append((team_name, item, f"failed: {exc.message}"))
 
     for team in cfg.teams:
         found = index.get(team.name.lower())
@@ -60,38 +75,41 @@ def sync(ctx: AppContext, repos_filter: list[str] | None, skip_repos: bool) -> N
         if found is not None:
             current_members = {m["login"].lower() for m in gh.team_members(org, slug)}
         for login in team.maintainers:
-            gh.team_add_member(org, slug, login, "maintainer")
-            rows.append((team.name, f"maintainer {login}", "added" if login.lower() not in current_members else "ensured"))
+            state = "added" if login.lower() not in current_members else "ensured"
+            attempt(team.name, f"maintainer {login}", state, lambda: gh.team_add_member(org, slug, login, "maintainer"))
         maintainer_logins = {m.lower() for m in team.maintainers}
         for login in team.members:
             if login.lower() in maintainer_logins:
                 continue
-            gh.team_add_member(org, slug, login, "member")
-            rows.append((team.name, f"member {login}", "added" if login.lower() not in current_members else "ensured"))
+            state = "added" if login.lower() not in current_members else "ensured"
+            attempt(team.name, f"member {login}", state, lambda: gh.team_add_member(org, slug, login, "member"))
         if skip_repos:
             continue
         for repo in _target_repos(ctx, team.repos, repos_filter, all_repos):
-            gh.team_add_repo(org, slug, org, repo, team.permission)
-            rows.append((team.name, f"repo {repo}", team.permission))
+            attempt(team.name, f"repo {repo}", team.permission, lambda: gh.team_add_repo(org, slug, org, repo, team.permission))
 
     if cfg.collaborators:
-        _sync_collaborators(ctx, repos_filter, skip_repos, rows)
+        failures += _sync_collaborators(ctx, repos_filter, skip_repos, rows)
     table(f"Team sync for {org}", ["team", "item", "result"], rows)
+    if failures:
+        raise GitTeamError(f"team sync finished with {failures} failed item(s); see the 'failed:' rows above")
     ok("team sync complete" + (" (dry-run)" if ctx.dry_run else ""))
     info("users who are not yet organization members receive an invitation e-mail from GitHub.")
 
 
 def _sync_collaborators(
     ctx: AppContext, repos_filter: list[str] | None, skip_repos: bool, rows: list[tuple[str, str, str]] | None = None
-) -> None:
+) -> int:
+    """Returns the number of failed items."""
     cfg = ctx.config
     gh = ctx.gh
     own_rows: list[tuple[str, str, str]] = [] if rows is None else rows
+    failures = 0
     if skip_repos:
-        return
+        return 0
     if not cfg.collaborators:
         warn("no collaborators configured (collaborators: [] in gitteam.yaml)")
-        return
+        return 0
     all_repos: list[str] | None = None
     if any("*" in c.repos for c in cfg.collaborators) and not repos_filter:
         source = gh.org_repos(cfg.owner) if cfg.mode.is_org else gh.user_repos()
@@ -102,15 +120,27 @@ def _sync_collaborators(
                 gh.collaborator_add(cfg.owner, repo, collab.user, collab.permission)
                 own_rows.append(("collaborator", f"{collab.user} -> {repo}", collab.permission))
             except GhApiError as exc:
+                failures += 1
                 own_rows.append(("collaborator", f"{collab.user} -> {repo}", f"failed: {exc.message}"))
     if rows is None:
         table(f"Collaborators for {cfg.owner}", ["kind", "item", "result"], own_rows)
+        if failures:
+            raise GitTeamError(f"collaborator sync finished with {failures} failed item(s); see the 'failed:' rows above")
         ok("collaborator sync complete" + (" (dry-run)" if ctx.dry_run else ""))
+    return failures
 
 
 def invite(ctx: AppContext, user: str, team: str | None, role: str, repo: str | None, permission: str) -> None:
     cfg = ctx.config
     gh = ctx.gh
+    if not cfgmod.is_valid_login(user):
+        raise GitTeamError(f"'{user}' is not a valid GitHub login")
+    if repo is not None and not cfgmod.is_valid_repo_name(repo):
+        raise GitTeamError(f"'{repo}' is not a valid repository name (letters, digits, . _ - only)")
+    if role not in cfgmod.ORG_ROLES:
+        raise GitTeamError(f"--role '{role}' is not one of: {', '.join(cfgmod.ORG_ROLES)}")
+    if permission not in cfgmod.PERMISSIONS:
+        raise GitTeamError(f"--permission '{permission}' is not one of: {', '.join(cfgmod.PERMISSIONS)}")
     if cfg.mode is Mode.PERSONAL:
         if not repo:
             raise CapabilityError("personal mode: pass --repo NAME to invite a collaborator to a repository")

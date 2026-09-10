@@ -22,6 +22,8 @@ ENV_CONFIG_HOME = "GITTEAM_CONFIG_HOME"
 VISIBILITIES = ("private", "public", "internal")
 PERMISSIONS = ("pull", "triage", "push", "maintain", "admin")
 PROTECTION_ENGINES = ("auto", "ruleset", "classic")
+SQUASH_TITLES = ("PR_TITLE", "COMMIT_OR_PR_TITLE")
+SQUASH_MESSAGES = ("PR_BODY", "COMMIT_MESSAGES", "BLANK")
 
 # Values that end up inside generated shell hooks / workflow YAML must stay within a safe alphabet.
 _SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
@@ -30,6 +32,9 @@ _SAFE_REGEX_RE = re.compile(r"^[A-Za-z0-9._/\\\-\[\]()^$*+?|{},:=!<>]+$")
 _SAFE_LOGIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")
 _SAFE_REPO_RE = re.compile(r"^(?!\.{1,2}$)[A-Za-z0-9_.-]+$")  # GitHub repository name, no path separators
 _SAFE_TEMPLATE_NAME_RE = re.compile(r"^[A-Za-z0-9_.+-]+$")  # github/gitignore template names such as C++
+_TOPIC_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,49}$")  # GitHub topic: lowercase, digits, hyphens, max 50
+_PATTERN_CHARS = "*?["
+ORG_ROLES = ("member", "admin")
 
 # git config keys `dev setup` may write. Anything that makes git execute a program
 # (core.fsmonitor, core.sshCommand, credential.helper, core.hooksPath, core.pager, alias "!", ...) is excluded.
@@ -194,12 +199,24 @@ class Collaborator:
     repos: list[str] = field(default_factory=lambda: ["*"])
 
 
+DEFAULT_BRANCH_TYPES = ("feature", "fix", "hotfix", "chore", "docs", "refactor", "test", "release")
+_BRANCH_SLUG_RE = r"[a-z0-9][a-z0-9._-]*"
+
+
+def branch_pattern_for(branch_types: list[str] | tuple[str, ...]) -> str:
+    """Regex accepting ``<type>/<slug>`` for exactly the given branch types."""
+    alternation = "|".join(re.escape(t) for t in branch_types) or "[a-z]+"
+    return f"^({alternation})/{_BRANCH_SLUG_RE}$"
+
+
+DEFAULT_BRANCH_PATTERN = branch_pattern_for(DEFAULT_BRANCH_TYPES)
+
+
 @dataclass
 class ConventionsConfig:
-    branch_types: list[str] = field(
-        default_factory=lambda: ["feature", "fix", "hotfix", "chore", "docs", "refactor", "test", "release"]
-    )
-    branch_pattern: str = r"^(feature|fix|hotfix|chore|docs|refactor|test|release)/[a-z0-9][a-z0-9._-]*$"
+    branch_types: list[str] = field(default_factory=lambda: list(DEFAULT_BRANCH_TYPES))
+    # Left at the default (or omitted), the pattern follows `branch_types`; set it to override.
+    branch_pattern: str = DEFAULT_BRANCH_PATTERN
     protected_branches: list[str] = field(default_factory=lambda: ["main", "develop"])
     require_issue_in_branch: bool = False
     commit_types: list[str] = field(
@@ -399,6 +416,10 @@ def default_config(owner: str = "", mode: Mode = Mode.ORG) -> Config:
 def _apply_mode_defaults(cfg: Config) -> None:
     if not cfg.scaffold.codeowners:
         cfg.scaffold.codeowners = {"*": ["@{owner}/core"] if cfg.mode.is_org else ["@{owner}"]}
+    conv = cfg.conventions
+    if conv.branch_pattern == DEFAULT_BRANCH_PATTERN and list(conv.branch_types) != list(DEFAULT_BRANCH_TYPES):
+        # `branch_types` was customised but the pattern was not: keep hooks/CI consistent with the builder.
+        conv.branch_pattern = branch_pattern_for(conv.branch_types)
 
 
 def validate(cfg: Config) -> None:
@@ -409,21 +430,66 @@ def validate(cfg: Config) -> None:
         problems.append(f"repo.visibility: must be one of {', '.join(VISIBILITIES)}")
     if cfg.repo.visibility == "internal" and cfg.mode is not Mode.ORG_ENTERPRISE:
         problems.append("repo.visibility: 'internal' is only available with mode 'org-enterprise'")
+    if cfg.repo.squash_merge_commit_title not in SQUASH_TITLES:
+        problems.append(f"repo.squash_merge_commit_title: must be one of {', '.join(SQUASH_TITLES)}")
+    if cfg.repo.squash_merge_commit_message not in SQUASH_MESSAGES:
+        problems.append(f"repo.squash_merge_commit_message: must be one of {', '.join(SQUASH_MESSAGES)}")
+    if not (cfg.repo.allow_squash_merge or cfg.repo.allow_merge_commit or cfg.repo.allow_rebase_merge):
+        problems.append("repo: at least one of allow_squash_merge / allow_merge_commit / allow_rebase_merge must be true")
     if cfg.protection.engine not in PROTECTION_ENGINES:
         problems.append(f"protection.engine: must be one of {', '.join(PROTECTION_ENGINES)}")
     if cfg.protection.required_approvals < 0 or cfg.protection.required_approvals > 6:
         problems.append("protection.required_approvals: must be between 0 and 6")
+    seen_labels: set[str] = set()
     for label in cfg.labels:
         if not re.fullmatch(r"[0-9a-fA-F]{6}", label.color):
             problems.append(f"labels: '{label.name}' color must be a 6-digit hex without '#'")
+        if not label.name.strip():
+            problems.append("labels: every label needs a name")
+        elif label.name.lower() in seen_labels:
+            problems.append(f"labels: '{label.name}' is listed more than once (GitHub label names are case-insensitive)")
+        seen_labels.add(label.name.lower())
+    if cfg.protection.engine == "classic":
+        for branch in cfg.protection.branches:
+            if any(ch in branch for ch in _PATTERN_CHARS):
+                problems.append(
+                    f"protection.branches: '{branch}' is a pattern; classic protection only accepts branch names "
+                    "(use engine: ruleset or auto)"
+                )
+    from .scaffold import COMPONENTS  # local import: scaffold depends on this module
+
+    for component in cfg.scaffold.include:
+        if component not in COMPONENTS:
+            problems.append(f"scaffold.include: unknown component '{component}' (known: {', '.join(COMPONENTS)})")
     for team in cfg.teams:
+        if not team.name.strip():
+            problems.append("teams: every team needs a name")
         if team.permission not in PERMISSIONS:
             problems.append(f"teams.{team.name}.permission: must be one of {', '.join(PERMISSIONS)}")
         if team.privacy not in ("closed", "secret"):
             problems.append(f"teams.{team.name}.privacy: must be 'closed' or 'secret'")
+        for login in team.members:
+            if not _SAFE_LOGIN_RE.match(login):
+                problems.append(f"teams.{team.name}.members: '{login}' is not a valid GitHub login")
+        for login in team.maintainers:
+            if not _SAFE_LOGIN_RE.match(login):
+                problems.append(f"teams.{team.name}.maintainers: '{login}' is not a valid GitHub login")
+        for repo in team.repos:
+            if repo != "*" and not _SAFE_REPO_RE.match(repo):
+                problems.append(f"teams.{team.name}.repos: '{repo}' is not a valid repository name (or '*')")
     for collab in cfg.collaborators:
+        if not _SAFE_LOGIN_RE.match(collab.user):
+            problems.append(f"collaborators: '{collab.user}' is not a valid GitHub login")
         if collab.permission not in PERMISSIONS:
             problems.append(f"collaborators.{collab.user}.permission: must be one of {', '.join(PERMISSIONS)}")
+        for repo in collab.repos:
+            if repo != "*" and not _SAFE_REPO_RE.match(repo):
+                problems.append(f"collaborators.{collab.user}.repos: '{repo}' is not a valid repository name (or '*')")
+    for topic in cfg.repo.topics:
+        if not _TOPIC_RE.match(topic):
+            problems.append(f"repo.topics: '{topic}' must be lowercase letters, digits and hyphens (max 50 characters)")
+    if cfg.repo.license is not None and not _SAFE_TEMPLATE_NAME_RE.match(cfg.repo.license):
+        problems.append(f"repo.license: '{cfg.repo.license}' is not a valid license key (e.g. mit, apache-2.0)")
     if cfg.mode is Mode.PERSONAL and cfg.teams:
         problems.append("teams: GitHub teams are not available for mode 'personal'; use 'collaborators' instead")
     try:

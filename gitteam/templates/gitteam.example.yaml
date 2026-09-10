@@ -82,6 +82,7 @@ collaborators: []
 
 conventions:
   branch_types: [feature, fix, hotfix, chore, docs, refactor, test, release]
+  # Left as is (or removed), the pattern follows branch_types automatically; edit it to override.
   branch_pattern: '^(feature|fix|hotfix|chore|docs|refactor|test|release)/[a-z0-9][a-z0-9._-]*$$'
   protected_branches: [main, develop]
   require_issue_in_branch: false      # true enforces <type>/<issue>-<description>

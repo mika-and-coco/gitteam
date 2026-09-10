@@ -93,9 +93,13 @@ def test_cli_blocks_untrusted_config_until_trusted(tmp_path: Path, monkeypatch: 
     result = runner.invoke(app, ["config", "validate"])
     assert result.exit_code == 1 and "not trusted" in result.output
 
-    # dev/ops commands must not silently fall back to defaults either
-    result = runner.invoke(app, ["ops", "commit", "check", "-m", "feat: x"])
+    # commands with side effects must not silently fall back to defaults either
+    result = runner.invoke(app, ["--dry-run", "ops", "hooks", "install"])
     assert result.exit_code == 1 and "not trusted" in result.output
+
+    # read-only checks (called from the git hooks) work, but say why they should be trusted
+    result = runner.invoke(app, ["ops", "commit", "check", "-m", "feat: x"])
+    assert result.exit_code == 0 and "untrusted" in result.output and "config trust" in result.output
 
     # an explicit --config is a deliberate choice by the operator
     assert runner.invoke(app, ["--config", "gitteam.yaml", "config", "validate"]).exit_code == 0

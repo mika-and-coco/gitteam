@@ -112,7 +112,8 @@ teams:
     repos: ["*"]
 
 conventions:
-  branch_pattern: '^(feature|fix|hotfix|chore|docs|refactor|test|release)/[a-z0-9][a-z0-9._-]*$'
+  branch_types: [feature, fix, hotfix, chore, docs, refactor, test, release]
+  # branch_pattern は省略可: branch_types から自動生成されます（独自の形式にしたいときだけ書く）
   commit_types: [feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert]
   commit_subject_max: 72
   tag_prefix: v
@@ -133,6 +134,11 @@ dev:
 | サーバー | Rulesets / branch protection | レビュー・CODEOWNERS・線形履歴を強制 |
 
 hooks は `gitteam` が PATH にあればそれを呼び、無い場合は同じルールの POSIX sh 実装で動作します。
+`git commit -v` の diff（scissors 行以降）は検証対象から除外されます。
+
+設定ファイルは読み込み時に検証され、ログイン名・リポジトリ名・トピック・ラベルの重複・
+`scaffold.include` の名前などの誤りは、GitHub に問い合わせる前にまとめて報告されます
+（`gitteam config validate`）。
 
 ## 必要な gh トークンスコープ
 
@@ -202,6 +208,8 @@ streamlit run ui/streamlit_app.py   # 手動起動
 * **作業ディレクトリで見つかった `gitteam.yaml` は明示的に信頼するまで使いません**（git の `safe.directory` と同じ考え方）。
   クローンしたリポジトリに同梱された設定を確認したら `gitteam config trust` を実行します。`config init` で自分が作った設定と、
   `~/.config/gitteam/` 配下の設定は自動的に信頼されます。`--config PATH` で明示指定した場合も同様です。
+  例外として、副作用のない `ops branch check` / `ops commit check`（git hooks から呼ばれます）は未信頼の設定でも
+  `conventions` だけを参照して検証を行い、信頼するよう 1 行の注意を表示します。クローン直後でもコミットは止まりません。
 * **`dev.git_config` は許可されたキーのみ**書き込みます。git にプログラムを実行させる設定（`core.fsmonitor`、`core.sshCommand`、
   `credential.helper`、`core.hooksPath`、`!` で始まるエイリアスなど）は設定の検証で拒否されます。
 * **hooks / Actions に埋め込まれる値は安全な文字集合に制限**され、シェルや YAML への注入はできません。

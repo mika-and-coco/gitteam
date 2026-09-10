@@ -157,7 +157,7 @@ def _scaffold(ctx: AppContext, target: RepoTarget, opts: InitOptions, newly_crea
         return "up to date"
     if not opts.push:
         return f"{len(result.written)} file(s) written (not committed)"
-    current = git.current_branch()
+    current = git.current_branch() if can_touch_files else ""
     if current and current != cfg.repo.default_branch and not ctx.dry_run:
         raise GitTeamError(
             f"the clone at {workdir} is on branch '{current}'; the scaffold must be committed on "
@@ -250,7 +250,12 @@ def apply_protection(ctx: AppContext, target: RepoTarget, visibility: str) -> st
     engine = protmod.choose_engine(cfg.protection)
     applied: list[str] = []
     if engine == "ruleset":
-        existing = {r["name"]: r for r in _list_or_empty(ctx, lambda: gh.rulesets(target.owner, target.name))}
+        # The repository endpoint also lists inherited organisation rulesets; those cannot be updated here.
+        existing = {
+            r["name"]: r
+            for r in _list_or_empty(ctx, lambda: gh.rulesets(target.owner, target.name))
+            if str(r.get("source_type", "Repository")) == "Repository"
+        }
         for branch in cfg.protection.branches:
             payload = protmod.ruleset_payload(cfg.protection, branch)
             found = existing.get(payload["name"])

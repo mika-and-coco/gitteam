@@ -8,7 +8,7 @@ import yaml
 from .. import config as cfgmod
 from ..context import AppContext
 from ..errors import ConfigError
-from ..ui import DRY_RUN, get_console, info, ok, table
+from ..ui import DRY_RUN, info, ok, plain, table
 
 EXAMPLE_TEMPLATE = Path(__file__).parent.parent / "templates" / "gitteam.example.yaml"
 
@@ -62,7 +62,7 @@ def trust(ctx: AppContext, path: Path | None) -> Path:
         raise ConfigError("no gitteam.yaml to trust; pass the path explicitly")
     cfgmod.load(target)  # must at least be a valid config before trusting it
     if ctx.dry_run:
-        info(f"[dry-run] would trust {target}")
+        info(f"{DRY_RUN} would trust {target}")
         return target
     cfgmod.trust_path(target)
     ok(f"trusted {target.resolve()}")
@@ -75,7 +75,7 @@ def untrust(ctx: AppContext, path: Path | None) -> None:
     if target is None:
         raise ConfigError("no gitteam.yaml given")
     if ctx.dry_run:
-        info(f"[dry-run] would untrust {target}")
+        info(f"{DRY_RUN} would untrust {target}")
         return
     if cfgmod.untrust_path(target):
         ok(f"removed {target.resolve()} from the trusted list")
@@ -98,7 +98,7 @@ def validate(ctx: AppContext) -> cfgmod.Config:
 def show(ctx: AppContext) -> None:
     cfg = ctx.config
     info(f"source: {cfg.source_path}")
-    get_console().print(yaml.safe_dump(cfgmod.to_dict(cfg), sort_keys=False, allow_unicode=True))
+    plain(yaml.safe_dump(cfgmod.to_dict(cfg), sort_keys=False, allow_unicode=True))
 
 
 def capabilities(ctx: AppContext, visibility: str | None) -> None:

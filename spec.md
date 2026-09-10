@@ -132,6 +132,22 @@ tests/                   pytest（160 件）
 **MUST**: 未知のキーは読み込みエラーとする（タイプミス検出）。
 **MUST**: `mode: personal` のとき `teams` は空でなければならない。
 
+### 4.2.1 検証規則
+
+`config validate` / 読み込み時に以下を検査し、違反はすべて列挙して `ConfigError` とする。
+
+| 対象 | 規則 |
+| --- | --- |
+| `owner`、`teams[].members/maintainers`、`collaborators[].user` | GitHub ログイン形式（英数字とハイフン、39 文字以内） |
+| `teams[].repos`、`collaborators[].repos`、`dev.repos` | リポジトリ名（英数字 `. _ -`）。`repos` は `"*"` も可 |
+| `repo.topics` | 小文字英数字とハイフン、50 文字以内 |
+| `repo.license`、`repo.gitignore_templates` | 英数字 `. _ + -` |
+| `repo.squash_merge_commit_title` / `_message` | `PR_TITLE \| COMMIT_OR_PR_TITLE` / `PR_BODY \| COMMIT_MESSAGES \| BLANK`。マージ方式は最低 1 つ有効 |
+| `labels[]` | 6 桁 16 進の色。名前は必須で、大文字小文字を無視して一意 |
+| `protection.branches` | `engine: classic` のときパターン（`* ? [`）不可 |
+| `scaffold.include` | 既知のコンポーネント名のみ |
+| `conventions.*`、`dev.git_config`、`dev.aliases` | 7.2 S-5 / S-6 の安全な文字集合 |
+
 ### 4.3 リポジトリ設定の既定値
 
 | キー | 既定値 |
@@ -160,7 +176,7 @@ tests/                   pytest（160 件）
 | キー | 既定値 |
 | --- | --- |
 | `branch_types` | feature, fix, hotfix, chore, docs, refactor, test, release |
-| `branch_pattern` | `^(feature\|fix\|hotfix\|chore\|docs\|refactor\|test\|release)/[a-z0-9][a-z0-9._-]*$` |
+| `branch_pattern` | `^(feature\|fix\|hotfix\|chore\|docs\|refactor\|test\|release)/[a-z0-9][a-z0-9._-]*$`。既定のまま（または省略）で `branch_types` を変更した場合は、`branch_types` から `^(<type1>\|<type2>\|...)/[a-z0-9][a-z0-9._-]*$` を自動生成し、ブランチ名ビルダー・hooks・CI を一致させる |
 | `protected_branches` | main, develop（命名規則の対象外） |
 | `require_issue_in_branch` | false |
 | `commit_types` | feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert |
@@ -218,7 +234,7 @@ tests/                   pytest（160 件）
 | `ops branch new TYPE DESC [--issue] [--base]` | 規約に従うブランチ名を生成し、最新の base から作成 | MUST |
 | `ops branch check [NAME]` | 命名規則の検証（違反時 exit 1） | MUST |
 | `ops commit check [--range] [--message-file] [--message]` | Conventional Commits の検証（違反時 exit 1） | MUST |
-| `ops pr create [--title] [--base] [--draft] [--reviewer] [--label] [--no-verify]` | プッシュ → テンプレート・ラベル・レビュアー付きで PR 作成 | MUST |
+| `ops pr create [--title] [--base] [--draft] [--reviewer] [--label] [--no-verify]` | ブランチ名・コミット・タイトルを検証してからプッシュし、テンプレート・ラベル・レビュアー付きで PR 作成（違反時はリモートに何も残さない） | MUST |
 | `ops release VERSION [--prerelease] [--draft] [--allow-dirty]` | 既定ブランチで注釈付きタグと GitHub Release を作成 | MUST |
 | `ops hooks install [--shared/--local]` | commit-msg / pre-push フックの配置 | MUST |
 | `dev setup [--name] [--email] [--scope] [--signing-key] [--skip-gh]` | git 設定・エイリアス・改行コード・gh 認証ヘルパー | MUST |
@@ -236,7 +252,7 @@ tests/                   pytest（160 件）
 2. 雛形: 作業ディレクトリを clone（または既存 clone を使用）し、`scaffold.include` のコンポーネントを生成。既存ファイルは `--force` がない限り保持。生成物があれば `chore: initial project scaffold` としてコミットしプッシュ（`--no-push` で抑止）。フックは `git update-index --chmod=+x` で実行権限を付与。
 3. 設定: `PATCH repos/{o}/{r}`（マージ方式など）、トピック。
 4. ラベル: 既存を取得し、作成 / 更新 / 保持（`--prune` で削除）を計画・適用。
-5. 保護: 能力で可否を判定。Rulesets は `gitteam:<branch>` という名前で作成または更新、classic は既存ブランチにのみ適用。
+5. 保護: 能力で可否を判定。Rulesets は `gitteam:<branch>` という名前で作成または更新（リポジトリ一覧に混在する組織レベルの Rulesets は無視）、classic は既存ブランチにのみ適用。
 6. 権限: `teams[]`（org）または `collaborators[]`（personal）のうち対象リポジトリに該当するものを付与。
 7. 結果の要約表を表示。
 
@@ -247,9 +263,9 @@ tests/                   pytest（160 件）
 | 対象 | 規則 |
 | --- | --- |
 | ブランチ名 | `branch_pattern` に一致。`protected_branches` は対象外。`require_issue_in_branch` のとき `<type>/<issue>-<desc>` |
-| コミット件名 | `<type>(<scope>)?!?: <description>`。type は `commit_types`、長さ ≤ `commit_subject_max`、末尾ピリオド禁止、2 行目は空行。`Merge `/`Revert "` 始まりは対象外。`fixup!`/`squash!` は違反 |
-| バージョン | semver（`MAJOR.MINOR.PATCH[-pre][+build]`）。`tag_prefix` の有無を許容し、タグは `tag_prefix + semver` |
-| PR タイトル | コミットが 1 件で規約準拠ならその件名、それ以外はブランチ名から `<type>: <words>` を生成 |
+| コミット件名 | `<type>(<scope>)?!?: <description>`。type は `commit_types`、長さ ≤ `commit_subject_max`、末尾ピリオド禁止、2 行目は空行。`#` 始まりの行と scissors 行（`# ---- >8 ----`、`git commit -v` の diff）以降は無視。`Merge `/`Revert "` 始まりは対象外。`fixup!`/`squash!` は違反 |
+| バージョン | semver（`MAJOR.MINOR.PATCH[-pre][+build]`）。`tag_prefix` の有無を許容し、タグは `tag_prefix + semver`。リリースノートの起点（前回タグ）は `tag_prefix + semver` に一致するタグのうち最大のもの（`v1.10.0 > v1.9.0`、無関係なタグは無視） |
+| PR タイトル | コミットが 1 件で規約準拠ならその件名、それ以外はブランチ名から `<type>: <words>` を生成（`commit_subject_max` を超える場合は単語境界で切り詰め） |
 
 ### 6.4 Web UI
 
@@ -289,7 +305,7 @@ tests/                   pytest（160 件）
 | S-1 | Web UI は `localhost` のみで待ち受ける（`.streamlit/config.toml` と起動スクリプトで固定） | MUST |
 | S-2 | UI から指定できる設定ファイルは「カレントディレクトリ配下」または「ユーザー設定ディレクトリ配下」の `.yaml` / `.yml` に限る | MUST |
 | S-3 | UI は `owner` または `mode` を含む YAML マッピングのみを設定として表示・編集する | MUST |
-| S-4 | 作業ディレクトリで発見した設定は `is_trusted` が真になるまで読み込まない。`config init` で作成した設定は自動的に信頼する | MUST |
+| S-4 | 作業ディレクトリで発見した設定は `is_trusted` が真になるまで読み込まない。`config init` で作成した設定は自動的に信頼する。例外は副作用のない `ops branch check` / `ops commit check`（フックから呼ばれる）で、未信頼設定の `conventions` のみを警告付きで参照する（フック自体がリポジトリ由来のコードであり、信頼面は増えない） | MUST |
 | S-5 | `dev.git_config` のキーは許可リスト（`ALLOWED_GIT_CONFIG_KEYS`）のみ。エイリアスの値は `!` で始まってはならない | MUST |
 | S-6 | フック / ワークフローに埋め込む値（`branch_pattern`、種別名、保護ブランチ名、タグ接頭辞、既定ブランチ名、リポジトリ名、テンプレート名、オーナー名）は安全な文字集合に制限する | MUST |
 | S-7 | 外部コマンドはリスト引数で起動し `shell=True` を使わない。YAML は `safe_load` のみ | MUST |
@@ -320,6 +336,8 @@ tests/                   pytest（160 件）
 | `CapabilityError` | 利用形態・プランで使えない操作 | 代替手段（コラボレーター等）を案内 |
 | `ConventionError` | 規約違反 | 期待する形式の例を表示 |
 
+`team sync` は 1 件の失敗（存在しないログイン・リポジトリなど）で中断せず、残りを処理したうえで結果表に `failed: <理由>` を記録し、最後に失敗件数を `GitTeamError` として報告する。`--dry-run` はファイル・ディレクトリの作成や権限変更を含め、いかなる副作用も起こさない。
+
 ---
 
 ## 10. 制約・前提・未決事項
@@ -332,7 +350,7 @@ tests/                   pytest（160 件）
 ### 10.2 既知の制約
 
 * classic ブランチ保護は既存ブランチにのみ適用でき、パターンは扱えない（Rulesets を推奨）。
-* Organization のプランはトークンの権限によっては取得できず、その場合は `free` と仮定する。
+* プラン（Organization は `read:org`、個人は `user` スコープが必要）はトークンの権限によっては取得できず、その場合は警告のうえ `free` と仮定する（`plan:` で明示可能）。
 * Web UI は単一利用者のローカル利用を前提とし、複数人での同時利用や公開は想定しない。
 
 ### 10.3 未決事項

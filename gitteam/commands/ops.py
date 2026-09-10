@@ -11,7 +11,7 @@ from .. import scaffold as scaffoldmod
 from ..context import AppContext
 from ..errors import CommandError, ConventionError, GitTeamError
 from ..gitcmd import Git
-from ..ui import DRY_RUN, get_console, info, ok, warn
+from ..ui import DRY_RUN, info, ok, plain, warn
 
 
 def _git(ctx: AppContext) -> Git:
@@ -47,15 +47,15 @@ def branch_new(ctx: AppContext, branch_type: str, description: str, issue: int |
 
 
 def branch_check(ctx: AppContext, name: str | None) -> bool:
-    cfg = ctx.config_or_default()
+    rules = ctx.conventions_for_checks()
     branch = name or _git(ctx).current_branch()
     if not branch:
         raise ConventionError("detached HEAD: no branch name to check")
-    problems = conv.validate_branch_name(cfg.conventions, branch)
+    problems = conv.validate_branch_name(rules, branch)
     if problems:
         for problem in problems:
-            get_console().print(f"[red]x[/red] branch '{branch}': {problem}")
-        info(f"example: {cfg.conventions.branch_types[0]}/123-short-description")
+            plain(f"x branch '{branch}': {problem}", "red")
+        info(f"example: {rules.branch_types[0]}/123-short-description")
         return False
     ok(f"branch '{branch}' follows the naming convention")
     return True
@@ -65,7 +65,8 @@ def branch_check(ctx: AppContext, name: str | None) -> bool:
 
 
 def commit_check(ctx: AppContext, rev_range: str | None, message_file: Path | None, message: str | None) -> bool:
-    cfg = ctx.config_or_default()
+    rules = ctx.conventions_for_checks()
+    default_branch = ctx.config_or_default().repo.default_branch if ctx.is_trusted_config() else "main"
     messages: list[tuple[str, str]] = []
     if message is not None:
         messages.append(("<message>", message))
@@ -74,7 +75,7 @@ def commit_check(ctx: AppContext, rev_range: str | None, message_file: Path | No
     else:
         git = _git(ctx)
         if rev_range is None:
-            default = cfg.repo.default_branch
+            default = default_branch
             upstream = f"origin/{default}" if git.rev(f"refs/remotes/origin/{default}") else default
             rev_range = f"{upstream}..HEAD"
         try:
@@ -89,17 +90,17 @@ def commit_check(ctx: AppContext, rev_range: str | None, message_file: Path | No
             return True
     failures = 0
     for label, text in messages:
-        problems = conv.validate_commit_message(cfg.conventions, text)
+        problems = conv.validate_commit_message(rules, text)
         subject = text.strip().splitlines()[0] if text.strip() else ""
         if problems:
             failures += 1
-            get_console().print(f"[red]x[/red] {label}: {subject}")
+            plain(f"x {label}: {subject}", "red")
             for problem in problems:
-                get_console().print(f"    - {problem}")
+                plain(f"    - {problem}")
         elif ctx.runner.verbose:
-            get_console().print(f"[green]ok[/green] {label}: {subject}")
+            plain(f"ok {label}: {subject}", "green")
     if failures:
-        info(f"format: <type>(<scope>)?: <description>   types: {', '.join(cfg.conventions.commit_types)}")
+        info(f"format: <type>(<scope>)?: <description>   types: {', '.join(rules.commit_types)}")
         return False
     ok(f"{len(messages)} commit message(s) follow Conventional Commits")
     return True
@@ -119,7 +120,8 @@ def hooks_install(ctx: AppContext, shared: bool | None) -> None:
         verb = f"{DRY_RUN} would write" if ctx.dry_run else "wrote"
         for path in result.written:
             info(f"{verb} {path.relative_to(root)}")
-        _make_executable(hooks_dir)
+        if not ctx.dry_run:
+            _make_executable(hooks_dir)
         if result.written:
             # Stage the hooks and record the executable bit so clones on macOS/Linux can run them.
             git.add(*[p.relative_to(root).as_posix() for p in result.written])
@@ -144,7 +146,8 @@ def hooks_install(ctx: AppContext, shared: bool | None) -> None:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8", newline="\n")
         info(f"wrote {target}")
-    _make_executable(hooks_dir)
+    if not ctx.dry_run:
+        _make_executable(hooks_dir)
     ok(f"local hooks installed ({hooks_dir})")
 
 
@@ -184,9 +187,6 @@ def pr_create(
             raise ConventionError(f"branch '{branch}': {'; '.join(problems)}")
 
     git.fetch("origin", base_branch)
-    first_push = git.upstream_of(branch) is None
-    info(f"pushing {branch} to origin")
-    git.push("origin", branch, set_upstream=first_push)
     rev_range = f"origin/{base_branch}..HEAD" if git.rev(f"refs/remotes/origin/{base_branch}") else f"{base_branch}..HEAD"
     commits = git.commits(rev_range)
     if not commits and not ctx.dry_run:
@@ -203,6 +203,11 @@ def pr_create(
         title_problems = conv.validate_commit_message(cfg.conventions, final_title)
         if title_problems:
             raise ConventionError(f"PR title '{final_title}': {'; '.join(title_problems)}")
+
+    # Everything is validated: only now touch the remote.
+    first_push = git.upstream_of(branch) is None
+    info(f"pushing {branch} to origin")
+    git.push("origin", branch, set_upstream=first_push)
 
     body = _pr_body(git.toplevel(), branch, commits)
     all_labels = list(dict.fromkeys(labels))
@@ -281,7 +286,7 @@ def release(ctx: AppContext, version: str, *, prerelease: bool, draft: bool, all
         raise GitTeamError(f"local {default} ({local[:8]}) differs from origin/{default} ({remote[:8]}); pull or push first")
     if git.tag_exists(tag):
         raise GitTeamError(f"tag {tag} already exists")
-    previous = git.latest_tag(cfg.conventions.tag_prefix)
+    previous = conv.latest_version_tag(cfg.conventions, git.tags(cfg.conventions.tag_prefix))
     is_pre = prerelease or conv.is_prerelease(semver)
     git.tag_annotated(tag, f"Release {tag}")
     git.push("origin", f"refs/tags/{tag}")

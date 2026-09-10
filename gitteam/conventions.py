@@ -15,6 +15,7 @@ _SEMVER_RE = re.compile(
     r"(?:-(?P<pre>[0-9A-Za-z.-]+))?(?:\+(?P<build>[0-9A-Za-z.-]+))?$"
 )
 _ISSUE_IN_BRANCH_RE = re.compile(r"^[^/]+/(\d+)-")
+_SCISSORS_RE = re.compile(r"^#\s*-+\s*>8\s*-+")  # `git commit -v`: the diff follows this comment line
 
 
 @dataclass(frozen=True)
@@ -83,7 +84,12 @@ def branch_type_of(conv: ConventionsConfig, name: str) -> str | None:
 
 
 def _subject_of(message: str) -> tuple[str, list[str]]:
-    lines = [line for line in message.splitlines() if not line.startswith("#")]
+    lines: list[str] = []
+    for line in message.splitlines():
+        if _SCISSORS_RE.match(line):
+            break
+        if not line.startswith("#"):
+            lines.append(line)
     while lines and not lines[0].strip():
         lines.pop(0)
     if not lines:
@@ -137,6 +143,29 @@ def is_prerelease(semver: str) -> bool:
     return bool(match and match.group("pre"))
 
 
+def _version_key(match: re.Match[str]) -> tuple:
+    pre = match.group("pre")
+    # A final release sorts above its own pre-releases; pre-release identifiers compare numerically when possible.
+    pre_key = tuple((0, int(p)) if p.isdigit() else (1, p) for p in pre.split(".")) if pre else ()
+    return (int(match.group("major")), int(match.group("minor")), int(match.group("patch")), 0 if pre else 1, pre_key)
+
+
+def latest_version_tag(conv: ConventionsConfig, tags: list[str]) -> str | None:
+    """Highest semantic-version tag carrying ``tag_prefix`` (``v1.10.0`` > ``v1.9.0``); other tags are ignored."""
+    prefix = conv.tag_prefix
+    best: tuple[tuple, str] | None = None
+    for tag in tags:
+        if prefix and not tag.startswith(prefix):
+            continue
+        match = _SEMVER_RE.match(tag[len(prefix) :])
+        if not match:
+            continue
+        key = _version_key(match)
+        if best is None or key > best[0]:
+            best = (key, tag)
+    return best[1] if best else None
+
+
 def pr_title(conv: ConventionsConfig, branch: str, commit_subjects: list[str]) -> str:
     """Derive a Conventional-Commits style PR title from the commits or the branch name."""
     if len(commit_subjects) == 1 and parse_conventional(commit_subjects[0]):
@@ -146,7 +175,13 @@ def pr_title(conv: ConventionsConfig, branch: str, commit_subjects: list[str]) -
     tail = branch.split("/", 1)[1] if "/" in branch else branch
     tail = re.sub(r"^\d+-", "", tail)
     words = tail.replace("-", " ").replace("_", " ").strip() or branch
-    return f"{ctype}: {words}"
+    title = f"{ctype}: {words}"
+    if len(title) > conv.commit_subject_max:
+        cut = title[: conv.commit_subject_max]
+        at_word = cut.rsplit(" ", 1)[0]
+        # Keep a description after "<type>: " even when the first word alone exceeds the limit.
+        title = (at_word if len(at_word) > len(ctype) + 2 else cut).rstrip(" .")
+    return title
 
 
 def pr_label(conv: ConventionsConfig, title: str) -> str | None:

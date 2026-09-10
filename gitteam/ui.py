@@ -4,13 +4,14 @@ from contextlib import contextmanager
 from typing import Iterable, Iterator, Sequence
 
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 console = Console()
 err_console = Console(stderr=True)
 
-# "[dry-run]" escaped so rich does not treat it as a markup tag.
-DRY_RUN = r"\[dry-run]"
+# Plain text: the helpers below escape their message, so markup never leaks in.
+DRY_RUN = "[dry-run]"
 
 _redirect_stack: list[Console] = []
 
@@ -35,23 +36,29 @@ def redirected(target: Console) -> Iterator[Console]:
 
 
 def info(message: str) -> None:
-    get_console().print(f"[cyan]i[/cyan] {message}")
+    get_console().print(f"[cyan]i[/cyan] {escape(message)}")
 
 
 def ok(message: str) -> None:
-    get_console().print(f"[green]OK[/green] {message}")
+    get_console().print(f"[green]OK[/green] {escape(message)}")
 
 
 def warn(message: str) -> None:
-    get_console().print(f"[yellow]WARN[/yellow] {message}")
+    get_console().print(f"[yellow]WARN[/yellow] {escape(message)}")
 
 
 def fail(message: str) -> None:
-    get_err_console().print(f"[red]ERROR[/red] {message}")
+    get_err_console().print(f"[red]ERROR[/red] {escape(message)}")
 
 
 def step(title: str) -> None:
-    get_console().rule(f"[bold]{title}[/bold]", align="left")
+    get_console().rule(f"[bold]{escape(title)}[/bold]", align="left")
+
+
+def plain(message: str, style: str | None = None) -> None:
+    """Print ``message`` verbatim (no markup interpretation), optionally in ``style``."""
+    text = escape(message)
+    get_console().print(f"[{style}]{text}[/{style}]" if style else text)
 
 
 def table(title: str, columns: Sequence[str], rows: Iterable[Sequence[object]]) -> None:
@@ -61,7 +68,7 @@ def table(title: str, columns: Sequence[str], rows: Iterable[Sequence[object]]) 
     empty = True
     for row in rows:
         empty = False
-        t.add_row(*[str(c) for c in row])
+        t.add_row(*[escape(str(c)) for c in row])
     if empty:
         t.add_row(*["-"] * len(columns))
     get_console().print(t)

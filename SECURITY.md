@@ -25,6 +25,8 @@ gitteam 自身はトークンや認証情報を保存・送信しません。
 
 * Web UI を `--server.address 0.0.0.0` などで LAN に公開しないでください。
 * 他人のリポジトリ内で `gitteam` を実行するときは、同梱の `gitteam.yaml` を読んでから `gitteam config trust` してください。
+* 例外: 副作用のない `ops branch check` / `ops commit check`（git hooks から呼ばれる）は、未信頼の `gitteam.yaml` でも
+  `conventions` のみを読んで検証します（警告を表示）。フック自体がリポジトリ由来のコードであるため、信頼面は増えません。
 * `gh auth login` のトークンは gh が管理します。gitteam の設定ファイルやリポジトリにトークンを書かないでください。
 
 ## 脆弱性の報告 / Reporting a vulnerability

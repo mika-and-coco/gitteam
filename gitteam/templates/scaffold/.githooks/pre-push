@@ -21,7 +21,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     *" $$branch "*) ;;
     *)
       if [ "$$has_gitteam" -eq 1 ]; then
-        gitteam ops branch check "$$branch" || status=1
+        gitteam ops branch check "$$branch" </dev/null || status=1
       elif ! printf '%s\n' "$$branch" | grep -Eq "$$PATTERN"; then
         echo "gitteam: branch '$$branch' does not match $$PATTERN" >&2; status=1
       fi ;;
@@ -34,7 +34,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   fi
 
   if [ "$$has_gitteam" -eq 1 ]; then
-    gitteam ops commit check --range "$$range" || status=1
+    gitteam ops commit check --range "$$range" </dev/null || status=1
     continue
   fi
   git log --no-merges --format=%s $$range | while IFS= read -r subject; do

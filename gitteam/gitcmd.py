@@ -85,9 +85,9 @@ class Git:
     def tag_exists(self, tag: str) -> bool:
         return self.rev(f"refs/tags/{tag}") is not None
 
-    def latest_tag(self, prefix: str) -> str | None:
-        out = self._out("tag", "--list", f"{prefix}*", "--sort=-v:refname")
-        return out.splitlines()[0] if out else None
+    def tags(self, prefix: str = "") -> list[str]:
+        out = self._out("tag", "--list", f"{prefix}*")
+        return [line.strip() for line in out.splitlines() if line.strip()]
 
     def commits(self, *revisions: str, include_merges: bool = False) -> list[Commit]:
         """Commits selected by git-log revision arguments (e.g. ``"main..HEAD"`` or

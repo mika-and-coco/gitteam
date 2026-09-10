@@ -93,7 +93,8 @@ def onboard(ctx: AppContext, *, directory: Path, name: str | None, email: str | 
     if not cfg.dev.repos:
         info("dev.repos is empty in gitteam.yaml; nothing to clone")
         return
-    directory.mkdir(parents=True, exist_ok=True)
+    if not ctx.dry_run:
+        directory.mkdir(parents=True, exist_ok=True)
     rows: list[tuple[str, str]] = []
     for repo in cfg.dev.repos:
         dest = directory / repo

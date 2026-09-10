@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Sequence
 
 from .errors import CommandError, GitTeamError
+from rich.markup import escape
+
 from .ui import DRY_RUN, get_console
 
 
@@ -45,14 +47,16 @@ class Runner:
     ) -> subprocess.CompletedProcess[str]:
         shown = self.display(cmd)
         if self.dry_run and mutating:
-            get_console().print(f"[magenta]{DRY_RUN}[/magenta] {shown}", soft_wrap=True)
+            get_console().print(f"[magenta]{escape(DRY_RUN)}[/magenta] {escape(shown)}", soft_wrap=True)
             if input:
-                get_console().print(f"[dim]{self._pretty(input)}[/dim]")
+                get_console().print(f"[dim]{escape(self._pretty(input))}[/dim]")
             return subprocess.CompletedProcess(list(cmd), 0, "", "")
         if self.verbose:
-            get_console().print(f"[dim]$ {shown}[/dim]", soft_wrap=True)
+            get_console().print(f"[dim]$ {escape(shown)}[/dim]", soft_wrap=True)
             if input:
-                get_console().print(f"[dim]{self._pretty(input)}[/dim]")
+                get_console().print(f"[dim]{escape(self._pretty(input))}[/dim]")
+        if cwd is not None and not Path(cwd).is_dir():
+            raise GitTeamError(f"working directory does not exist: {cwd}")
         try:
             proc = subprocess.run(
                 [str(c) for c in cmd],
@@ -66,7 +70,7 @@ class Runner:
         except FileNotFoundError as exc:
             raise GitTeamError(f"'{cmd[0]}' was not found on PATH. Install it and retry.") from exc
         if self.verbose and proc.stdout.strip():
-            get_console().print(f"[dim]{proc.stdout.rstrip()}[/dim]")
+            get_console().print(f"[dim]{escape(proc.stdout.rstrip())}[/dim]")
         if check and proc.returncode != 0:
             raise CommandError(shown, proc.returncode, proc.stdout, proc.stderr)
         return proc
