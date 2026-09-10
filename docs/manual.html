@@ -711,7 +711,7 @@ kbd { font-family: var(--font-mono); font-size: 0.75rem; border: 1px solid var(-
       <pre><code>gh auth refresh -s admin:org</code></pre>
       <div class="callout callout-warning">
         <div class="callout-title">GitHub のプランによる制限</div>
-        無料プランでは<strong>非公開リポジトリに main ブランチの保護を設定できません</strong>。gitteam は自動でプランを調べ、使えない機能は理由を添えてスキップします。公開リポジトリにするか、有料プラン（個人は Pro、組織は Team 以上）にすると使えるようになります。
+        無料プランでは<strong>非公開リポジトリに main ブランチの保護を設定できません</strong>。gitteam は自動でプランを調べ、使えない機能は理由を添えてスキップします。公開リポジトリにするか、有料プラン（個人は Pro、組織は Team 以上）にすると使えるようになります。プランを読み取れない場合（gh の権限不足）は警告のうえ無料プランとみなすので、有料プランなら設定ファイルの <code>plan:</code> に明示してください。
       </div>
     </section>
 
@@ -866,12 +866,13 @@ gitteam --help                      # コマンドを使う場合</code></pre>
 
       <h3>PR（プルリクエスト）とリリース</h3>
       <ul>
-        <li><strong>PR を出す</strong>: タイトルは空欄でも自動で付きます。今いるブランチをプッシュし、テンプレート・ラベル・レビュアーを設定して PR を作ります。</li>
-        <li><strong>リリース</strong>: バージョン（例 <code>1.4.0</code>）を入力すると、main の今の状態にタグ <code>v1.4.0</code> を付け、変更点をまとめた GitHub Release を公開します。main 以外のブランチや未コミットの変更があるときは止まります。</li>
+        <li><strong>PR を出す</strong>: タイトルは空欄でも自動で付きます。ブランチ名・コミットメッセージ・タイトルを先に検証し、問題がなければ今いるブランチをプッシュして、テンプレート・ラベル・レビュアーを設定した PR を作ります（違反があるとプッシュ前に止まるので、GitHub には何も残りません）。</li>
+        <li><strong>リリース</strong>: バージョン（例 <code>1.4.0</code>）を入力すると、main の今の状態にタグ <code>v1.4.0</code> を付け、変更点をまとめた GitHub Release を公開します。変更点は前回のバージョンタグ（バージョン番号順で判定。<code>v1.10.0</code> は <code>v1.9.0</code> より新しい扱い）以降から集めます。main 以外のブランチや未コミットの変更があるときは止まります。</li>
       </ul>
 
       <h3>自動チェック（hooks）</h3>
       <p>「自動チェックを入れる」を実行すると、コミット時と push 時にルールを自動で検証する仕組みがリポジトリに入ります。「リポジトリに入れてチーム全員で共有」を選ぶと、他のメンバーも <code>git config core.hooksPath .githooks</code> の 1 行で同じチェックを使えます。</p>
+      <p><code>git commit -v</code> で表示される差分（diff）は検査の対象外です。また、リポジトリに <code>gitteam.yaml</code> が入っていてまだ「信頼」していない場合でも、この検査だけは設定のルールを読んで動きます（信頼を促す注意が 1 行出ます）。クローン直後のコミットが止まることはありません。</p>
     </section>
 
     <section id="config">
@@ -915,7 +916,7 @@ gitteam --help                      # コマンドを使う場合</code></pre>
           <tr><td><code>gitteam team sync [--repo NAME] [--skip-repos]</code></td><td>チーム・メンバー・権限の反映</td></tr>
           <tr><td><code>gitteam team invite USER [--team T] [--repo R] [--permission push]</code></td><td>招待</td></tr>
           <tr><td><code>gitteam ops branch new TYPE "説明" [--issue N]</code></td><td>ブランチ作成</td></tr>
-          <tr><td><code>gitteam ops branch check</code> / <code>gitteam ops commit check</code></td><td>ルールの検証（違反時は終了コード 1）</td></tr>
+          <tr><td><code>gitteam ops branch check</code> / <code>gitteam ops commit check</code></td><td>ルールの検証（違反時は終了コード 1）。未信頼の設定でも <code>conventions</code> を読んで動作（警告あり）</td></tr>
           <tr><td><code>gitteam ops pr create [--draft]</code></td><td>PR 作成</td></tr>
           <tr><td><code>gitteam ops release 1.4.0</code></td><td>リリース</td></tr>
           <tr><td><code>gitteam ops hooks install [--shared|--local]</code></td><td>自動チェックの導入</td></tr>
@@ -941,7 +942,7 @@ gitteam --help                      # コマンドを使う場合</code></pre>
         <div class="card card--accent-amber">
           <div class="card-label">設定ファイルの信頼</div>
           <div class="card-value">明示的に信頼</div>
-          <div class="card-detail">クローンしたリポジトリに入っていた設定は、確認して「信頼する」を押すまで使いません</div>
+          <div class="card-detail">クローンしたリポジトリに入っていた設定は、確認して「信頼する」を押すまで使いません（例外は副作用のない名前・メッセージの検査のみ）</div>
         </div>
         <div class="card card--accent-red">
           <div class="card-label">認証情報</div>
@@ -953,12 +954,14 @@ gitteam --help                      # コマンドを使う場合</code></pre>
       <p>
         他の人が作ったリポジトリをクローンし、その中に <code>gitteam.yaml</code> が入っていた場合に表示されます。設定ファイルは git の設定や自動チェックの内容を変えられるため、
         <strong>中身を確認してから</strong>サイドバーの「この設定ファイルを信頼する」を押してください（CLI では <code>gitteam config trust</code>）。自分で「はじめに」画面から作った設定は自動的に信頼されます。
+        例外として、自動チェック（hooks）から呼ばれるブランチ名とコミットメッセージの検査だけは、未信頼のままでも設定のルールを読んで動きます。この検査は何も変更しないためです。
       </p>
       <h3>設定に書けないもの</h3>
       <p>安全のため、設定の保存時に次の内容は拒否されます。</p>
       <ul>
         <li>git にプログラムを実行させる設定（<code>core.fsmonitor</code>、<code>core.sshCommand</code>、<code>credential.helper</code>、<code>core.hooksPath</code> など）と、<code>!</code> で始まるエイリアス</li>
         <li>ブランチ命名の正規表現や種別名などに含まれる引用符・セミコロン・空白などの特殊文字（自動チェックのスクリプトに埋め込まれるため）</li>
+        <li>GitHub の形式に合わないユーザー名・リポジトリ名・トピック・ライセンスキー、同じ名前のラベルの重複、雛形（<code>scaffold.include</code>）の不明な項目、classic 保護でのブランチ名パターン（GitHub に送る前に画面でまとめて指摘されます）</li>
       </ul>
       <p>詳しくは <code>SECURITY.md</code> を参照してください。</p>
     </section>

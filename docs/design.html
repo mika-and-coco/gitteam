@@ -704,7 +704,7 @@ kbd { font-family: var(--font-mono); font-size: 0.75rem; border: 1px solid var(-
           <tr><td>D-4</td><td>ブランチ保護の既定エンジンは Rulesets</td><td>パターン指定可、ブランチ未作成でも設定可、GitHub が投資している API</td><td>classic protection: 既存ブランチのみ、パターン不可。互換のため選択肢として残す</td></tr>
           <tr><td>D-5</td><td>3 形態を <code>mode</code> + 自動判定 <code>plan</code> + 可視性から能力に写像する</td><td>使えない機能を実行前に理由付きでスキップでき、途中失敗を避ける</td><td>形態ごとの分岐をコマンド内に散在: 保守困難</td></tr>
           <tr><td>D-6</td><td>UI の設定編集は ruamel.yaml のラウンドトリップで行う</td><td>生成した設定ファイルのコメント（説明）を保持できる</td><td>PyYAML の dump: コメントが消え、初心者向けの説明が失われる</td></tr>
-          <tr><td>D-7</td><td>作業ディレクトリで見つかった設定は明示的信頼まで使わない</td><td>クローンした他人のリポジトリ同梱の設定が git 設定や生成フックを変えるのを防ぐ（git の <code>safe.directory</code> と同じ考え方）</td><td>常に信頼: セキュリティレビューで High 相当の経路と判定</td></tr>
+          <tr><td>D-7</td><td>作業ディレクトリで見つかった設定は明示的信頼まで使わない。例外は副作用のない <code>ops branch check</code> / <code>ops commit check</code>（git hooks から呼ばれる）で、未信頼設定の <code>conventions</code> のみを警告付きで読む</td><td>クローンした他人のリポジトリ同梱の設定が git 設定や生成フックを変えるのを防ぐ（git の <code>safe.directory</code> と同じ考え方）。検査だけは、呼び出し元のフック自体がリポジトリ由来のコードであり信頼面が増えないため、クローン直後のコミットを止めない</td><td>常に信頼: セキュリティレビューで High 相当の経路と判定。検査もブロック: gitteam を入れた人だけ全コミットが止まり、sh フォールバックと挙動が逆転（初期版で採用し撤回）</td></tr>
           <tr><td>D-8</td><td>UI は変更操作を「確認→実行」の 2 段階に統一し、実行は確認時と同一の引数で行う</td><td>初心者の誤操作防止と、確認内容と実行内容の一致保証</td><td>グローバル dry-run トグル: 状態が 2 か所に分かれ分かりにくい（初期版で採用し撤回）</td></tr>
           <tr><td>D-9</td><td>CLI メッセージは英語、UI は日本語</td><td>CLI は git / gh の出力と混在するため英語で統一。UI は対象読者に合わせて日本語化し、dry-run 行を日本語の操作説明に変換する</td><td>CLI も日本語化: 未決事項として保留（§13）</td></tr>
         </tbody>
@@ -853,7 +853,7 @@ kbd { font-family: var(--font-mono); font-size: 0.75rem; border: 1px solid var(-
               <text x="90" y="184">4. PATCH repos（マージ方式・機能）, PUT topics</text>
               <text x="90" y="224">5. GET labels → plan_changes → POST/PATCH/DELETE</text>
               <text x="90" y="264">6. resolve(mode, plan, visibility) → 保護可否</text>
-              <text x="90" y="304">7. rulesets GET → POST/PUT（または classic PUT）</text>
+              <text x="90" y="304">7. rulesets GET（Repository 由来のみ）→ POST/PUT（または classic PUT）</text>
               <text x="90" y="344">8. teams/{slug}/repos PUT または collaborators PUT</text>
             </g>
             <rect x="20" y="375" width="740" height="28" rx="6" fill="#dcfce7" stroke="#16a34a"/>
@@ -918,6 +918,7 @@ kbd { font-family: var(--font-mono); font-size: 0.75rem; border: 1px solid var(-
         <figcaption>図4: <code>discover_config</code> と <code>require_trusted</code>。作業ディレクトリ由来の設定だけが信頼リストを参照する</figcaption>
       </figure>
       <p><code>config_or_default()</code>（ops / dev が使用）は設定が無ければ既定値にフォールバックするが、<code>UntrustedConfigError</code> は再送出する。未信頼の設定を黙って無視しないための設計である。</p>
+      <p><code>conventions_for_checks()</code>（<code>branch check</code> / <code>commit check</code> が使用）は読み取り専用の例外で、未信頼設定でも <code>conventions</code> だけを返し、<code>config trust</code> を促す警告を 1 行出す。返した値の到達先は <code>re</code> と画面出力のみで、subprocess 引数・ファイル生成・git 設定には流れない（§10 S-4）。</p>
 
       <h3 id="flow-capabilities">5.4 能力判定</h3>
       <table class="spec-table">
@@ -972,9 +973,9 @@ kbd { font-family: var(--font-mono); font-size: 0.75rem; border: 1px solid var(-
         <thead><tr><th>段階</th><th>関数</th><th>内容</th></tr></thead>
         <tbody>
           <tr><td>1. 構造変換</td><td><code>_build</code> / <code>_coerce</code></td><td>型ヒントに基づき dict → dataclass。未知キー、型不一致、Enum 外の値を <code>ConfigError</code> にする</td></tr>
-          <tr><td>2. 形態既定値</td><td><code>_apply_mode_defaults</code></td><td>CODEOWNERS 既定（org: <code>@{owner}/core</code>、personal: <code>@{owner}</code>）</td></tr>
-          <tr><td>3. 意味検証</td><td><code>validate</code></td><td>可視性と形態の整合、承認数の範囲、ラベル色、権限値、personal で teams 空、正規表現のコンパイル</td></tr>
-          <tr><td>4. 安全性検証</td><td><code>_safety_problems</code></td><td>フック / ワークフローに埋め込む値の文字集合、<code>git_config</code> 許可キー、<code>!</code> エイリアス拒否（§10）</td></tr>
+          <tr><td>2. 形態既定値</td><td><code>_apply_mode_defaults</code></td><td>CODEOWNERS 既定（org: <code>@{owner}/core</code>、personal: <code>@{owner}</code>）。<code>branch_pattern</code> が既定のままで <code>branch_types</code> が変更されていれば <code>branch_pattern_for(branch_types)</code> で派生（ビルダー・hooks・CI を一致させる。検証より前に行うため派生結果も文字集合検査を受ける）</td></tr>
+          <tr><td>3. 意味検証</td><td><code>validate</code></td><td>可視性と形態の整合、承認数の範囲、ラベル色・名前の一意性（大文字小文字無視）、権限値、squash 設定値とマージ方式の有無、personal で teams 空、classic でのパターン禁止、<code>scaffold.include</code> の既知名、正規表現のコンパイル</td></tr>
+          <tr><td>4. 安全性検証</td><td><code>_safety_problems</code></td><td>フック / ワークフローに埋め込む値の文字集合、ログイン名（owner・members・maintainers・collaborators）、リポジトリ名（<code>repos</code>、<code>*</code> 可）、トピック、ライセンスキー、<code>git_config</code> 許可キー、<code>!</code> エイリアス拒否（§10）</td></tr>
         </tbody>
       </table>
       <h3>その他の値オブジェクト</h3>
@@ -1035,6 +1036,8 @@ kbd { font-family: var(--font-mono); font-size: 0.75rem; border: 1px solid var(-
         <li><code>commit-msg</code>: <code>gitteam</code> が PATH にあれば <code>gitteam ops commit check --message-file</code> に委譲、無ければ POSIX sh の同等実装で検証。</li>
         <li><code>pre-push</code>: stdin の各 ref について、ブランチ名（保護ブランチは除外）と push 範囲のコミット件名を検証。新規ブランチは <code>--not --remotes</code> で範囲を決める。</li>
         <li>フックに埋め込む値は §10 の文字集合検証を通ったものだけであり、単一引用符で囲んだ変数代入として展開される。</li>
+        <li><code>pre-push</code> 内の <code>gitteam</code> 呼び出しは <code>&lt;/dev/null</code> で stdin を切り離し、git が渡す ref 一覧を子プロセスが消費しない。</li>
+        <li><code>commit check</code> は <code>#</code> 行と scissors 行（<code>git commit -v</code> の diff）以降を無視する。クローン直後で <code>gitteam.yaml</code> が未信頼でも、検査は <code>conventions</code> だけを読んで動く（§5.3）。</li>
       </ul>
       <h3>GitHub Actions <code>conventions.yml</code></h3>
       <p>PR の <code>opened / edited / synchronize / reopened</code> で、ブランチ名・PR タイトル・コミット件名を検証する。PR タイトルやブランチ名は <code>env:</code> 経由で渡し、<code>run:</code> 内に直接展開しない（式インジェクション対策）。</p>
@@ -1081,7 +1084,7 @@ kbd { font-family: var(--font-mono); font-size: 0.75rem; border: 1px solid var(-
           <tr><td>S-1</td><td>UI を localhost に限定</td><td><code>.streamlit/config.toml</code> <code>[server] address</code>、起動スクリプトの <code>--server.address localhost</code></td><td>手動（LAN からの接続拒否を確認）</td></tr>
           <tr><td>S-2</td><td>UI の設定パス制限</td><td><code>services.check_config_path</code>: cwd 配下またはユーザー設定ディレクトリ配下の <code>.yaml/.yml</code></td><td><code>test_ui.py::test_check_config_path_*</code></td></tr>
           <tr><td>S-3</td><td>設定の形をした YAML のみ表示</td><td><code>services.readable_config_text</code>（owner / mode を含むマッピング）</td><td><code>test_readable_config_text_refuses_non_gitteam_yaml</code></td></tr>
-          <tr><td>S-4</td><td>作業ディレクトリ設定の信頼</td><td><code>config.discover_config / is_trusted / require_trusted</code>、<code>config trust</code>、UI 信頼ボタン、<code>config init</code> の自動信頼</td><td><code>test_security.py</code>（探索・CLI・UI）</td></tr>
+          <tr><td>S-4</td><td>作業ディレクトリ設定の信頼（読み取り専用の検査のみ例外）</td><td><code>config.discover_config / is_trusted / require_trusted</code>、<code>config trust</code>、UI 信頼ボタン、<code>config init</code> の自動信頼、<code>AppContext.conventions_for_checks</code></td><td><code>test_security.py</code>（探索・CLI・UI）、<code>test_devils_advocate.py::test_hook_checks_use_untrusted_conventions_with_a_hint</code></td></tr>
           <tr><td>S-5</td><td><code>git_config</code> 許可キー、<code>!</code> エイリアス拒否</td><td><code>config.ALLOWED_GIT_CONFIG_KEYS</code>、<code>_safety_problems</code></td><td><code>test_dangerous_values_are_rejected</code></td></tr>
           <tr><td>S-6</td><td>フック / ワークフロー埋め込み値の文字集合</td><td><code>_SAFE_REGEX_RE</code>, <code>_SAFE_NAME_RE</code>, <code>_SAFE_GLOB_RE</code>, <code>_SAFE_REPO_RE</code>, <code>_SAFE_LOGIN_RE</code></td><td>同上</td></tr>
           <tr><td>S-7</td><td>リスト引数の subprocess、<code>safe_load</code></td><td><code>runner.py</code>, <code>config.load</code>, <code>services</code></td><td>コードレビュー</td></tr>
@@ -1094,12 +1097,16 @@ kbd { font-family: var(--font-mono); font-size: 0.75rem; border: 1px solid var(-
       <h2>11. テスト設計</h2>
       <div class="pyramid">
         <div class="pyramid-level">
-          <div class="pyramid-bar" style="width:45%;background:#7048c6;">UI（AppTest） <span class="count">43</span></div>
+          <div class="pyramid-bar" style="width:45%;background:#7048c6;">UI（AppTest） <span class="count">46</span></div>
           <div class="pyramid-detail">全ページの描画、ウィザード、フォーム送信、設定パス制限、信頼ボタン、要約関数</div>
         </div>
         <div class="pyramid-level">
-          <div class="pyramid-bar" style="width:55%;background:#0284c7;">CLI / セキュリティ <span class="count">31</span></div>
-          <div class="pyramid-detail">typer CliRunner による実 git リポジトリ上のコマンド、hooks の実動作、信頼フロー</div>
+          <div class="pyramid-bar" style="width:55%;background:#0284c7;">CLI / セキュリティ <span class="count">44</span></div>
+          <div class="pyramid-detail">typer CliRunner による実 git リポジトリ上のコマンド、hooks の実動作、信頼フロー、過去の不具合の回帰</div>
+        </div>
+        <div class="pyramid-level">
+          <div class="pyramid-bar" style="width:60%;background:#b91c1c;">回帰（悪魔の代弁者レビュー） <span class="count">32</span></div>
+          <div class="pyramid-detail">実 git + 固定応答の gh（HybridRunner）で、dry-run の無副作用、出力のエスケープ、検証規則、PR / リリース / team sync の順序と失敗処理を固定</div>
         </div>
         <div class="pyramid-level">
           <div class="pyramid-bar" style="width:65%;background:#e8910c;">統合（Runner / Gh） <span class="count">10</span></div>
@@ -1144,8 +1151,8 @@ kbd { font-family: var(--font-mono); font-size: 0.75rem; border: 1px solid var(-
     <section id="risks">
       <h2>13. リスクと未決事項</h2>
       <div class="risk-card risk-card--medium">
-        <div class="risk-header"><span class="badge badge-risk-medium">Medium</span><span class="risk-title">Organization のプランが読めない場合に free と仮定する</span></div>
-        <div class="risk-body">保護が「スキップ」されて意図しない状態になり得る。対策: <code>plan:</code> の明示指定を README と doctor で案内済み。</div>
+        <div class="risk-header"><span class="badge badge-risk-medium">Medium</span><span class="risk-title">プラン（Organization / 個人）が読めない場合に free と仮定する</span></div>
+        <div class="risk-body">保護が「スキップ」されて意図しない状態になり得る。対策: どちらの形態でも警告を出し、<code>plan:</code> の明示指定を README と doctor で案内済み。</div>
       </div>
       <div class="risk-card risk-card--medium">
         <div class="risk-header"><span class="badge badge-risk-medium">Medium</span><span class="risk-title">classic 保護は既存ブランチにしか適用できない</span></div>
